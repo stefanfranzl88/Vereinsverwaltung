@@ -1,0 +1,14 @@
+# Zeilenenden im Repository immer LF, im Arbeitsverzeichnis nativ.
+# Ohne das committet Windows CRLF und Linux/macOS LF – der Diff zeigt dann
+# ganze Dateien als geändert, obwohl niemand etwas angefasst hat.
+* text=auto eol=lf
+
+# Binärdateien nie anfassen.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.xlsx binary
