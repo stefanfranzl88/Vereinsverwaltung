@@ -267,6 +267,31 @@ export interface DeptAssignment {
 }
 
 // ---------------------------------------------------------------
+// Dokumente (Modul 'dokumente')
+// ---------------------------------------------------------------
+
+/** Kategorien aus dem Prototyp (DOC_CATS). */
+export const DOC_CATEGORIES = [
+  'Verträge',
+  'Versicherungen',
+  'Schadensmeldungen',
+  'Bescheide & Behörden',
+  'Sonstiges',
+] as const
+
+export type DocumentCategory = (typeof DOC_CATEGORIES)[number]
+
+export interface VereinsDocument {
+  id: string
+  tenant_id: string
+  name: string
+  category: string
+  file_path: string
+  created_at: string
+  members: { first_name: string; last_name: string } | null
+}
+
+// ---------------------------------------------------------------
 // Umfragen (Modul 'umfragen')
 // ---------------------------------------------------------------
 

@@ -15,6 +15,7 @@ import { ProtokollePage } from '@/features/protokolle/ProtokollePage'
 import { MitarbeitPage } from '@/features/mitarbeit/MitarbeitPage'
 import { UmfragenPage } from '@/features/umfragen/UmfragenPage'
 import { SchluesselPage } from '@/features/schluessel/SchluesselPage'
+import { DokumentePage } from '@/features/dokumente/DokumentePage'
 
 /**
  * Noch nicht gebaute Module. Der Nav-Eintrag ist bereits modul-gegated,
@@ -139,7 +140,7 @@ export function App() {
           path="dokumente"
           element={
             <RequireAccess module="dokumente" perm="docs.view">
-              <Soon title="Dokumentenablage" />
+              <DokumentePage />
             </RequireAccess>
           }
         />
