@@ -267,6 +267,18 @@ export interface DeptAssignment {
 }
 
 // ---------------------------------------------------------------
+// Chat (Modul 'chat')
+// ---------------------------------------------------------------
+
+export interface ChatMessage {
+  id: string
+  tenant_id: string
+  member_id: string
+  body: string
+  created_at: string
+}
+
+// ---------------------------------------------------------------
 // Dokumente (Modul 'dokumente')
 // ---------------------------------------------------------------
 

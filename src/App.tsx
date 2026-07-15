@@ -16,23 +16,7 @@ import { MitarbeitPage } from '@/features/mitarbeit/MitarbeitPage'
 import { UmfragenPage } from '@/features/umfragen/UmfragenPage'
 import { SchluesselPage } from '@/features/schluessel/SchluesselPage'
 import { DokumentePage } from '@/features/dokumente/DokumentePage'
-
-/**
- * Noch nicht gebaute Module. Der Nav-Eintrag ist bereits modul-gegated,
- * die Seite selbst kommt in den nächsten Schritten.
- */
-function Soon({ title }: { title: string }) {
-  return (
-    <>
-      <h2 className="view-title">{title}</h2>
-      <p className="view-sub">Dieses Modul ist noch nicht umgesetzt.</p>
-      <div className="notice">
-        Freigeschaltet und sichtbar – der Inhalt folgt im nächsten Ausbauschritt.
-      </div>
-    </>
-  )
-}
-
+import { ChatPage } from '@/features/chat/ChatPage'
 export function App() {
   return (
     <Routes>
@@ -132,7 +116,7 @@ export function App() {
           path="chat"
           element={
             <RequireAccess module="chat">
-              <Soon title="Vereins-Chat" />
+              <ChatPage />
             </RequireAccess>
           }
         />

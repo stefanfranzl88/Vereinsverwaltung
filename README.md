@@ -3,8 +3,10 @@
 React + Vite + TypeScript auf Supabase. Design und Funktionsumfang folgen
 `vereinsverwaltung-prototyp_10.html`, das Datenmodell `vereinsverwaltung_schema.sql`.
 
-Stand: Login, Mandanten-Kontext (Tenant), Modul-Gating und das Mitglieder-Modul.
-Die übrigen Navigationspunkte sind bereits gegated, aber inhaltlich Platzhalter.
+Stand: alle Module aus dem Prototyp sind umgesetzt – Login mit DSGVO-Zustimmung,
+Mandanten-Kontext (Tenant), Modul-Gating, Rollen-Matrix, Mitglieder, Termine,
+Mitteilungen, Aufgaben, Kassa, Rechnungen, Events & Projekte, Inventar,
+Protokolle, Mitarbeitspunkte, Umfragen, Schlüsselverwaltung, Dokumente und Chat.
 
 ## Einrichten
 
@@ -31,12 +33,14 @@ npm run dev
 | 11 | `supabase/migrations/0012_umfragen.sql` | RLS für Umfragen; geheime Abstimmung, Ergebnis-Aggregat |
 | 12 | `supabase/migrations/0013_schluessel.sql` | RLS für Zutrittsprotokoll + Chip-/Import-Funktionen |
 | 13 | `supabase/migrations/0014_dokumente.sql` | RLS für die Dokumentenablage + `documents`-Bucket |
-| 14 | `supabase/seed_demo_content.sql` | *optional*: Demo-Termine, -Mitteilungen und -Aufgaben |
-| 15 | `supabase/seed_demo_kassa.sql` | *optional*: Anfangsbestand, Kostenstellen, Buchungen |
-| 16 | `supabase/seed_demo_events.sql` | *optional*: Subtermine, Abteilungen, Helfereinteilung |
-| 17 | `supabase/seed_demo_inventar.sql` | *optional*: Standorte, Artikel, Ausleihen, Reservierungen |
-| 18 | `supabase/seed_demo_protokolle.sql` | *optional*: Protokolle, Anwesenheit, Aufgaben-Zuordnung |
-| 19 | `supabase/seed_demo_schluessel.sql` | *optional*: Zutrittsprotokoll und Auslese-Erinnerung |
+| 14 | `supabase/migrations/0015_chat.sql` | RLS für den Chat + Realtime-Publication |
+| 15 | `supabase/seed_demo_content.sql` | *optional*: Demo-Termine, -Mitteilungen und -Aufgaben |
+| 16 | `supabase/seed_demo_kassa.sql` | *optional*: Anfangsbestand, Kostenstellen, Buchungen |
+| 17 | `supabase/seed_demo_events.sql` | *optional*: Subtermine, Abteilungen, Helfereinteilung |
+| 18 | `supabase/seed_demo_inventar.sql` | *optional*: Standorte, Artikel, Ausleihen, Reservierungen |
+| 19 | `supabase/seed_demo_protokolle.sql` | *optional*: Protokolle, Anwesenheit, Aufgaben-Zuordnung |
+| 20 | `supabase/seed_demo_schluessel.sql` | *optional*: Zutrittsprotokoll und Auslese-Erinnerung |
+| 21 | `supabase/seed_demo_chat.sql` | *optional*: ein paar Chat-Nachrichten |
 
 `setup_complete.sql` ist das einzige Skript, das du brauchst. Es ist durchgängig
 idempotent und darf beliebig oft laufen. Die E-Mail des Auth-Benutzers steht in
