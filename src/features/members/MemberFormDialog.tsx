@@ -25,6 +25,10 @@ interface Props {
    */
   roles?: Role[]
   currentRoleKey?: string
+  /** Zeigt den Gefahrenbereich (DSGVO-Löschung) – nur Systemadmin, fremdes Mitglied. */
+  canGdprDelete?: boolean
+  deleting?: boolean
+  onGdprDelete?: () => void
   onSave: (input: MemberInput, roleKey: string | null) => void
   onClose: () => void
 }
@@ -38,6 +42,9 @@ export function MemberFormDialog({
   saving,
   roles,
   currentRoleKey,
+  canGdprDelete,
+  deleting,
+  onGdprDelete,
   onSave,
   onClose,
 }: Props) {
@@ -51,6 +58,12 @@ export function MemberFormDialog({
     funktion: member?.funktion ?? null,
   })
   const [roleKey, setRoleKey] = useState(currentRoleKey ?? '')
+
+  // Gefahrenbereich: eingeklappt, dann doppelte Bestätigung (Häkchen + Nachname).
+  const [dangerOpen, setDangerOpen] = useState(false)
+  const [ack, setAck] = useState(false)
+  const [typed, setTyped] = useState('')
+  const gdprReady = ack && member != null && typed.trim() === member.last_name
 
   const set = <K extends keyof MemberInput>(key: K, value: MemberInput[K]) =>
     setForm((f) => ({ ...f, [key]: value }))
@@ -174,6 +187,77 @@ export function MemberFormDialog({
                 </div>
               )}
             </div>
+
+            {/* ---------- Gefahrenbereich: DSGVO-Löschung ---------- */}
+            {canGdprDelete && (
+              <div
+                style={{
+                  marginTop: 18,
+                  borderTop: '1px solid var(--red-soft)',
+                  paddingTop: 12,
+                }}
+              >
+                <h4 style={{ fontSize: 13.5, color: 'var(--red)', margin: '0 0 6px' }}>
+                  Gefahrenbereich
+                </h4>
+
+                {!dangerOpen ? (
+                  <button
+                    type="button"
+                    className="btn ghost small danger"
+                    onClick={() => setDangerOpen(true)}
+                  >
+                    🗑 DSGVO-Löschung…
+                  </button>
+                ) : (
+                  <div className="notice" style={{ background: 'var(--red-soft)', borderColor: '#e8c4ba' }}>
+                    ⚠️ <b>Endgültig.</b> Name, E-Mail, Telefon, Profilbild und Schlüsselchips von{' '}
+                    <b>
+                      {member?.first_name} {member?.last_name}
+                    </b>{' '}
+                    werden anonymisiert („Ehemaliges Mitglied"), der App-Zugang entfernt. Nicht
+                    umkehrbar.
+                    <label className="consent-check" style={{ marginTop: 10 }}>
+                      <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} />
+                      <span>Ich habe verstanden, dass diese Löschung endgültig ist.</span>
+                    </label>
+                    <div style={{ marginTop: 6 }}>
+                      <label htmlFor="gdpr-confirm">
+                        Zur Bestätigung den Nachnamen tippen: <b>{member?.last_name}</b>
+                      </label>
+                      <input
+                        id="gdpr-confirm"
+                        autoComplete="off"
+                        value={typed}
+                        onChange={(e) => setTyped(e.target.value)}
+                      />
+                    </div>
+                    <div className="row" style={{ marginTop: 10 }}>
+                      <button
+                        type="button"
+                        className="btn ghost small"
+                        onClick={() => {
+                          setDangerOpen(false)
+                          setAck(false)
+                          setTyped('')
+                        }}
+                      >
+                        Abbrechen
+                      </button>
+                      <div className="spacer" />
+                      <button
+                        type="button"
+                        className="btn danger small"
+                        disabled={!gdprReady || deleting}
+                        onClick={() => onGdprDelete?.()}
+                      >
+                        {deleting ? 'Wird gelöscht…' : 'Endgültig löschen'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="foot">

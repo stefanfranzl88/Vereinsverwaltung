@@ -137,6 +137,9 @@ export function MembersPage() {
         queryClient.invalidateQueries({ queryKey: memberRolesKey(tenantId) }),
       ])
       setOffboard(null)
+      // GDPR-Löschung kommt aus dem Bearbeiten-Dialog – den ebenfalls schließen.
+      setDialogOpen(false)
+      setEditing(null)
       toast(vars.mode === 'exit' ? 'Austritt erfasst' : 'Mitglied DSGVO-konform gelöscht')
     },
     onError: (e: Error) => toastError(e.message),
@@ -242,32 +245,6 @@ export function MembersPage() {
             </span>
           )}
 
-          {/* Zugangsstatus (getrennt von der Mitgliedschafts-Status-Pille). */}
-          {account === 'aktiv' && (
-            <span className="pill green" style={{ marginLeft: 6 }} title="Hat einen Login">
-              ✓ Zugang
-            </span>
-          )}
-          {account === 'eingeladen' && (
-            <span
-              className="pill amber"
-              style={{ marginLeft: 6 }}
-              title={
-                state?.invitedAt
-                  ? `Zuletzt eingeladen am ${fdate(state.invitedAt.slice(0, 10))} – noch nicht angenommen`
-                  : 'Einladung gesendet, noch nicht angenommen'
-              }
-            >
-              eingeladen
-              {state?.invitedAt && (
-                <span style={{ fontWeight: 400, opacity: 0.8 }}>
-                  {' '}
-                  · {fdate(state.invitedAt.slice(0, 10))}
-                </span>
-              )}
-            </span>
-          )}
-
           {isMe && (
             <>
               <br />
@@ -294,6 +271,36 @@ export function MembersPage() {
         <td className="mono" style={{ fontSize: 13 }}>
           {fdate(m.joined_at)}
         </td>
+
+        {/* Eigene Spalte für den Zugangsstatus – hält die Namenszeile ruhig. */}
+        {mayEdit && (
+          <td>
+            {account === 'aktiv' && (
+              <span className="pill green" title="Hat einen Login">
+                ✓ Zugang
+              </span>
+            )}
+            {account === 'eingeladen' && (
+              <span
+                className="pill amber"
+                title={
+                  state?.invitedAt
+                    ? `Zuletzt eingeladen am ${fdate(state.invitedAt.slice(0, 10))} – noch nicht angenommen`
+                    : 'Einladung gesendet, noch nicht angenommen'
+                }
+              >
+                eingeladen
+                {state?.invitedAt && (
+                  <span style={{ fontWeight: 400, opacity: 0.8 }}>
+                    {' '}
+                    · {fdate(state.invitedAt.slice(0, 10))}
+                  </span>
+                )}
+              </span>
+            )}
+          </td>
+        )}
+
         {mayEdit && (
           <td>
             <div className="row" style={{ gap: 6, justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
@@ -334,15 +341,6 @@ export function MembersPage() {
                   Austritt
                 </button>
               )}
-              {isSysadmin && m.id !== me?.id && (
-                <button
-                  className="btn ghost small danger"
-                  title="DSGVO-Löschung (anonymisieren)"
-                  onClick={() => setOffboard({ mode: 'gdpr', member: m })}
-                >
-                  🗑
-                </button>
-              )}
             </div>
           </td>
         )}
@@ -357,12 +355,13 @@ export function MembersPage() {
         <th>Name</th>
         <th>Kontakt</th>
         <th>Eintritt</th>
+        {mayEdit && <th>Zugang</th>}
         {mayEdit && <th />}
       </tr>
     </thead>
   )
 
-  const colCount = mayEdit ? 5 : 4
+  const colCount = mayEdit ? 6 : 4
   const activeCount = members.filter((m) => m.status === 'aktiv').length
 
   return (
@@ -458,6 +457,10 @@ export function MembersPage() {
           saving={saveMutation.isPending}
           roles={mayManage ? roles : undefined}
           currentRoleKey={editing ? (memberRoleKeys.get(editing.id) ?? '') : ''}
+          // DSGVO-Löschung nur für Systemadmin und nur an fremden Mitgliedern.
+          canGdprDelete={isSysadmin && editing !== null && editing.id !== me?.id}
+          deleting={offboardMutation.isPending}
+          onGdprDelete={() => editing && offboardMutation.mutate({ mode: 'gdpr', member: editing })}
           onSave={(input, roleKey) => saveMutation.mutate({ input, roleKey })}
           onClose={() => {
             setDialogOpen(false)
