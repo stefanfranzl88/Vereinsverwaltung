@@ -1,15 +1,22 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 
 /**
- * Landeseite des Einladungslinks. Supabase legt die Session-Tokens beim Klick
- * in den URL-Hash; der Client (detectSessionInUrl) baut daraus automatisch eine
- * Sitzung. Hier setzt die Person ihr Passwort – danach geht es in die App, wo
- * der Consent-Dialog den ersten Login abfängt.
+ * Landeseite des Einladungslinks.
  *
- * Bewusst eine eigenständige Route (nicht unter RequireAuth/AppShell): Der
- * eingeladene Benutzer hat zwar eine Sitzung, soll aber erst das Passwort setzen.
+ * Supabase liefert die Sitzung je nach Flow unterschiedlich an:
+ *  - Implicit-Flow: Tokens im URL-Hash (#access_token=…) – detectSessionInUrl
+ *    verarbeitet das automatisch.
+ *  - PKCE-Flow: ein Einmal-Code in der Query (?code=…) – der muss mit
+ *    exchangeCodeForSession GENAU EINMAL eingelöst werden (der Code ist danach
+ *    verbraucht; ein zweiter Versuch scheitert mit „code not found").
+ *
+ * Diese Seite deckt beide Fälle ab und loggt die ankommende URL, damit sich der
+ * Flow-Typ im Zweifel an echten Daten ablesen lässt.
+ *
+ * Eigenständige Route (nicht unter RequireAuth/AppShell): der Eingeladene hat
+ * zwar eine Sitzung, soll aber erst das Passwort setzen.
  */
 export function SetPasswordPage() {
   const navigate = useNavigate()
@@ -21,13 +28,44 @@ export function SetPasswordPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // getSession() löst erst auf, wenn der URL-Hash verarbeitet ist – danach
-  // wissen wir, ob der Link eine gültige Sitzung mitgebracht hat.
+  // Guard: der Code darf nur ein einziges Mal eingelöst werden (StrictMode ruft
+  // Effekte im Dev doppelt auf – das würde den Einmal-Code verbrennen).
+  const handled = useRef(false)
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setHasSession(Boolean(data.session))
+    if (handled.current) return
+    handled.current = true
+
+    async function init() {
+      // Diagnose: was kommt tatsächlich in der URL an?
+      // eslint-disable-next-line no-console
+      console.info('[set-password] href:', window.location.href)
+      // eslint-disable-next-line no-console
+      console.info('[set-password] search:', window.location.search, '| hash:', window.location.hash)
+
+      // 1. Hat detectSessionInUrl (Hash-Flow) bereits eine Sitzung gebaut?
+      let session = (await supabase.auth.getSession()).data.session
+
+      // 2. Sonst: liegt ein PKCE-Code vor? Dann genau einmal einlösen.
+      if (!session) {
+        const code = new URLSearchParams(window.location.search).get('code')
+        if (code) {
+          const { error: exchErr } = await supabase.auth.exchangeCodeForSession(code)
+          if (exchErr) {
+            // eslint-disable-next-line no-console
+            console.error('[set-password] exchangeCodeForSession:', exchErr.message)
+            setError(`Link konnte nicht eingelöst werden: ${exchErr.message}`)
+          } else {
+            session = (await supabase.auth.getSession()).data.session
+          }
+        }
+      }
+
+      setHasSession(Boolean(session))
       setReady(true)
-    })
+    }
+
+    void init()
   }, [])
 
   const submit = async (e: FormEvent) => {
