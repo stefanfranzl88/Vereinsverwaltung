@@ -1,7 +1,7 @@
 -- =====================================================================
 -- LIVE-TEST: darf der eingeloggte Benutzer eine Mitteilung anlegen?
 --
--- ERST fix_write_policies.sql ausführen, DANN diese Datei.
+-- ERST migrations/0017_fix_news_write_policies.sql ausführen, DANN diese Datei.
 --
 -- Der Test simuliert die Session des Benutzers (setzt auth.uid() über das
 -- JWT-Claim) und wechselt auf die Rolle 'authenticated' – nur so greift die
@@ -15,7 +15,7 @@
 -- Ergebnis:
 --   * Block läuft ohne Fehler → die INSERT-Policy erlaubt das Posten. Fix ok.
 --   * "violates row-level security policy" → der Benutzer hat news.post NICHT
---     (dann E1 in fix_write_policies.sql ansehen: Rolle/Recht fehlt) ODER die
+--     (dann E1 in migrations/0017_fix_news_write_policies.sql ansehen: Rolle/Recht fehlt) ODER die
 --     E-Mail gehört zu keinem Mitglied dieses Vereins.
 --   * "null value ... author_id" o.ä. → der Benutzer hat kein verknüpftes
 --     Mitglied (profiles.member_id ist null).

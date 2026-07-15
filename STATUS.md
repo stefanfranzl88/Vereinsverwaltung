@@ -99,7 +99,7 @@ erreichbare Function auf.
 | Funktion | Status | Notiz |
 | --- | --- | --- |
 | Anzeige (Dashboard) | 🔨 | gebaut, ungetestet |
-| Veröffentlichen (Foto, Ablaufdatum) | 🐛→🔨 | RLS-Fehler von dir gemeldet; Fix in `fix_write_policies.sql`, unbestätigt |
+| Veröffentlichen (Foto, Ablaufdatum) | 🐛→🔨 | RLS-Fehler von dir gemeldet; Fix in Migration `0017`, unbestätigt |
 
 ### Aufgaben
 | Funktion | Status | Notiz |
