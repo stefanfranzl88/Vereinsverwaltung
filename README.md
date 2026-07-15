@@ -27,11 +27,15 @@ npm run dev
 | 7 | `supabase/migrations/0008_bigevents_rls.sql` | RLS für Events & Projekte, Abteilungen, Einteilung |
 | 8 | `supabase/migrations/0009_inventar.sql` | RLS + Funktionen fürs Inventar (Ausborgen, Bestand, Historie) |
 | 9 | `supabase/migrations/0010_protokolle.sql` | RLS für die Anwesenheit + atomares Speichern von Protokollen |
-| 10 | `supabase/seed_demo_content.sql` | *optional*: Demo-Termine, -Mitteilungen und -Aufgaben |
-| 11 | `supabase/seed_demo_kassa.sql` | *optional*: Anfangsbestand, Kostenstellen, Buchungen |
-| 12 | `supabase/seed_demo_events.sql` | *optional*: Subtermine, Abteilungen, Helfereinteilung |
-| 13 | `supabase/seed_demo_inventar.sql` | *optional*: Standorte, Artikel, Ausleihen, Reservierungen |
-| 14 | `supabase/seed_demo_protokolle.sql` | *optional*: Protokolle, Anwesenheit, Aufgaben-Zuordnung |
+| 10 | `supabase/migrations/0011_mitarbeitspunkte.sql` | Punkte-Aggregat aus der Anwesenheit (member_points) |
+| 11 | `supabase/migrations/0012_umfragen.sql` | RLS für Umfragen; geheime Abstimmung, Ergebnis-Aggregat |
+| 12 | `supabase/migrations/0013_schluessel.sql` | RLS für Zutrittsprotokoll + Chip-/Import-Funktionen |
+| 13 | `supabase/seed_demo_content.sql` | *optional*: Demo-Termine, -Mitteilungen und -Aufgaben |
+| 14 | `supabase/seed_demo_kassa.sql` | *optional*: Anfangsbestand, Kostenstellen, Buchungen |
+| 15 | `supabase/seed_demo_events.sql` | *optional*: Subtermine, Abteilungen, Helfereinteilung |
+| 16 | `supabase/seed_demo_inventar.sql` | *optional*: Standorte, Artikel, Ausleihen, Reservierungen |
+| 17 | `supabase/seed_demo_protokolle.sql` | *optional*: Protokolle, Anwesenheit, Aufgaben-Zuordnung |
+| 18 | `supabase/seed_demo_schluessel.sql` | *optional*: Zutrittsprotokoll und Auslese-Erinnerung |
 
 `setup_complete.sql` ist das einzige Skript, das du brauchst. Es ist durchgängig
 idempotent und darf beliebig oft laufen. Die E-Mail des Auth-Benutzers steht in

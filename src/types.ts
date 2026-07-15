@@ -401,6 +401,36 @@ export interface KeyChip {
   issued_at: string
 }
 
+/** Chip mit Personendaten – für die Schlüsselverwaltung. */
+export interface KeyChipWithMember extends KeyChip {
+  members: { first_name: string; last_name: string; funktion: string | null; photo_path: string | null } | null
+}
+
+/** Ein Zutritt aus dem EVVA-Export (Tabelle key_log_entries). */
+export interface KeyLogEntry {
+  id: string
+  entry_date: string | null
+  entry_time: string | null
+  chip_info: string | null
+  event: string | null
+}
+
+/** Metadaten eines Protokoll-Uploads (Tabelle key_log_uploads). */
+export interface KeyLogUpload {
+  id: string
+  file_name: string | null
+  row_count: number | null
+  created_at: string
+}
+
+/** Eine geparste Zeile aus dem Export, wie sie an import_key_log() geht. */
+export interface KeyLogRow {
+  date: string | null
+  time: string | null
+  chip_info: string
+  event: string
+}
+
 /** Globaler Rechte-Katalog (Tabelle permissions). Jedes Recht gehört zu einem Modul. */
 export interface PermissionCatalogItem {
   key: string

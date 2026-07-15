@@ -14,6 +14,7 @@ import { InventarPage } from '@/features/inventar/InventarPage'
 import { ProtokollePage } from '@/features/protokolle/ProtokollePage'
 import { MitarbeitPage } from '@/features/mitarbeit/MitarbeitPage'
 import { UmfragenPage } from '@/features/umfragen/UmfragenPage'
+import { SchluesselPage } from '@/features/schluessel/SchluesselPage'
 
 /**
  * Noch nicht gebaute Module. Der Nav-Eintrag ist bereits modul-gegated,
@@ -146,7 +147,7 @@ export function App() {
           path="schluessel"
           element={
             <RequireAccess module="schluessel" perm="keys.view">
-              <Soon title="Schlüsselverwaltung" />
+              <SchluesselPage />
             </RequireAccess>
           }
         />
