@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Vereinsverwaltung Gödersdorf</string>
+    <string name="title_activity_main">Vereinsverwaltung Gödersdorf</string>
+    <string name="package_name">at.goedersdorf.verein</string>
+    <string name="custom_url_scheme">at.goedersdorf.verein</string>
+</resources>
