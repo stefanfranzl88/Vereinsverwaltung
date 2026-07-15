@@ -336,7 +336,10 @@ export interface SurveyResult {
 // Protokolle (Modul 'core')
 // ---------------------------------------------------------------
 
-export type ProtocolType = 'Sitzung' | 'Aufbau' | 'Abbau' | 'Veranstaltung' | 'Sonstiges'
+/** Die fünf Standardarten; eigene Arten (Config) sind zusätzlich als String erlaubt. */
+export type StandardProtocolType = 'Sitzung' | 'Aufbau' | 'Abbau' | 'Veranstaltung' | 'Sonstiges'
+/** proto_type ist frei (konfigurierbare Arten), deshalb string. */
+export type ProtocolType = string
 export type ProtocolVisibility = 'alle' | 'vorstand'
 
 export interface Protocol {
@@ -399,6 +402,8 @@ export interface Item {
   location_id: string | null
   defect: boolean
   note: string | null
+  /** Soft Delete: null = aktiv, Datum = ausgeschieden (Archiv). */
+  retired_at: string | null
 }
 
 /** Aktive Ausleihe. Teilmengen sind möglich (3 von 8 Biertischgarnituren). */

@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Avatar } from '@/components/Avatar'
+import { useAuth } from '@/auth/context'
 import { fullName, today } from '@/lib/format'
+import { attendanceTypes, pointValueFor, readMitarbeitConfig } from '@/features/mitarbeit/config'
 import type {
   Member,
   ProtocolInput,
@@ -8,17 +10,6 @@ import type {
   ProtocolType,
   ProtocolVisibility,
 } from '@/types'
-
-const TYPES: ProtocolType[] = ['Sitzung', 'Aufbau', 'Abbau', 'Veranstaltung', 'Sonstiges']
-
-/** Punkte je Art – siehe Mitarbeitspunkte. Nur als Hinweis im Editor. */
-const POINTS: Record<ProtocolType, number> = {
-  Sitzung: 1,
-  Aufbau: 2,
-  Abbau: 2,
-  Veranstaltung: 2,
-  Sonstiges: 1,
-}
 
 interface Props {
   members: Member[]
@@ -28,12 +19,17 @@ interface Props {
 }
 
 export function ProtocolEditor({ members, saving, onSave, onCancel }: Props) {
+  const { tenant } = useAuth()
+  // Anwesenheitsarten samt Punktwerten kommen aus der Vereins-Konfiguration.
+  const config = useMemo(() => readMitarbeitConfig(tenant?.settings), [tenant?.settings])
+  const types = useMemo(() => attendanceTypes(config), [config])
+
   const [title, setTitle] = useState('')
   const [date, setDate] = useState(today())
   const [location, setLocation] = useState('Vereinsheim')
   const [timeFrom, setTimeFrom] = useState('19:30')
   const [timeTo, setTimeTo] = useState('')
-  const [type, setType] = useState<ProtocolType>('Sitzung')
+  const [type, setType] = useState<ProtocolType>(types[0] ?? 'Sitzung')
   const [visibility, setVisibility] = useState<ProtocolVisibility>('alle')
   const [body, setBody] = useState('')
 
@@ -149,14 +145,10 @@ export function ProtocolEditor({ members, saving, onSave, onCancel }: Props) {
           </div>
           <div>
             <label htmlFor="p-type">Art</label>
-            <select
-              id="p-type"
-              value={type}
-              onChange={(e) => setType(e.target.value as ProtocolType)}
-            >
-              {TYPES.map((t) => (
+            <select id="p-type" value={type} onChange={(e) => setType(e.target.value)}>
+              {types.map((t) => (
                 <option key={t} value={t}>
-                  {t} ({POINTS[t]} P)
+                  {t} ({pointValueFor(config, t)} P)
                 </option>
               ))}
             </select>

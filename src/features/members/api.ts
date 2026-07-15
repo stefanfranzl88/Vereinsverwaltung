@@ -4,6 +4,59 @@ import type { KeyChip, Member, MemberInput } from '@/types'
 export const membersKey = (tenantId: string) => ['members', tenantId] as const
 export const keyChipsKey = (tenantId: string) => ['key-chips', tenantId] as const
 export const accountStatesKey = (tenantId: string) => ['member-account-states', tenantId] as const
+export const memberRolesKey = (tenantId: string) => ['member-roles', tenantId] as const
+
+/** member_id → Rollenschlüssel (erste Rolle) für die Dialog-Vorauswahl. */
+export async function fetchMemberRoleKeys(): Promise<Map<string, string>> {
+  const { data, error } = await supabase
+    .from('member_roles')
+    .select('member_id, roles(key)')
+    .returns<{ member_id: string; roles: { key: string } | null }[]>()
+
+  if (error) throw error
+  const map = new Map<string, string>()
+  for (const r of data ?? []) {
+    if (r.roles?.key && !map.has(r.member_id)) map.set(r.member_id, r.roles.key)
+  }
+  return map
+}
+
+/** Einzelrolle setzen (roles.manage). Leerer Schlüssel = nur "Mitglied". */
+export async function setMemberRole(memberId: string, roleKey: string): Promise<void> {
+  const { error } = await supabase.rpc('set_member_role', {
+    p_member_id: memberId,
+    p_role_key: roleKey || null,
+  })
+  if (error) throw error
+}
+
+/** Fehlermeldung aus der Edge-Function-Antwort ziehen (steckt im Body). */
+async function invokeOffboard(action: 'exit' | 'gdpr', memberId: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke<{ ok?: boolean; error?: string }>(
+    'member-offboard',
+    { body: { action, member_id: memberId } },
+  )
+  if (error) {
+    let msg = error.message
+    const ctx = (error as { context?: Response }).context
+    if (ctx && typeof ctx.json === 'function') {
+      try {
+        const body = await ctx.json()
+        if (body?.error) msg = body.error
+      } catch {
+        /* Body nicht lesbar */
+      }
+    }
+    throw new Error(msg)
+  }
+  if (!data?.ok) throw new Error(data?.error ?? 'Aktion fehlgeschlagen')
+}
+
+/** Austritt: Status ausgetreten, Auth-Zugang entfernen (Edge Function). */
+export const memberExit = (memberId: string) => invokeOffboard('exit', memberId)
+
+/** DSGVO-Löschung: anonymisieren + Zugang/Chips entfernen (Edge Function, Sysadmin). */
+export const memberGdprDelete = (memberId: string) => invokeOffboard('gdpr', memberId)
 
 /** Zugangsstatus eines Mitglieds. Fehlt der Eintrag → kein Zugang (einladbar). */
 export type MemberAccountStatus = 'aktiv' | 'eingeladen'

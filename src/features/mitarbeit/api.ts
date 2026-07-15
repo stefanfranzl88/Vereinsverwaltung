@@ -1,7 +1,6 @@
 import { supabase } from '@/lib/supabase'
 
-export const pointsKey = (tenantId: string, year: number) =>
-  ['member-points', tenantId, year] as const
+export const pointsKey = (tenantId: string) => ['member-points', tenantId] as const
 
 export interface MemberPoints {
   member_id: string
@@ -11,16 +10,15 @@ export interface MemberPoints {
 }
 
 /**
- * Punktestand je Mitglied für ein Vereinsjahr.
- *
- * Läuft über die Datenbankfunktion member_points() und NICHT über eine Abfrage
- * auf protocol_attendance. Grund: Anwesenheitszeilen sind an die Sichtbarkeit
- * des Protokolls gekoppelt – Vorstandssitzungen sieht ein normales Mitglied
- * nicht. Im Browser gerechnet bekäme jeder eine andere Rangliste.
- * Siehe supabase/migrations/0011_mitarbeitspunkte.sql.
+ * Punktestand je Mitglied. Läuft über die Datenbankfunktion member_points()
+ * und NICHT über eine Abfrage auf protocol_attendance: Anwesenheitszeilen sind
+ * an die Sichtbarkeit des Protokolls gekoppelt – Vorstandssitzungen sieht ein
+ * normales Mitglied nicht. Im Browser gerechnet bekäme jeder eine andere
+ * Rangliste. Die Punktwerte und der Zeitraum kommen aus der Vereins-Config
+ * (settings.mitarbeit). Siehe migrations 0011 + 0021.
  */
-export async function fetchMemberPoints(year: number): Promise<MemberPoints[]> {
-  const { data, error } = await supabase.rpc('member_points', { p_year: year })
+export async function fetchMemberPoints(): Promise<MemberPoints[]> {
+  const { data, error } = await supabase.rpc('member_points')
   if (error) throw error
 
   return ((data ?? []) as MemberPoints[]).map((r) => ({

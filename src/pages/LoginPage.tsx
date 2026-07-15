@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/auth/context'
@@ -14,6 +14,21 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+
+  // Branding (Name + Logo) für die noch unauthentifizierte Login-Seite über
+  // die öffentliche Funktion login_branding(). Fehlt sie/das Logo, bleibt es
+  // beim Standard.
+  const [brand, setBrand] = useState<{ name: string; logo_url: string | null } | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    supabase.rpc('login_branding').then(({ data }) => {
+      const row = (data as { name: string; logo_url: string | null }[] | null)?.[0]
+      if (!cancelled && row) setBrand(row)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   if (session && !loading) {
     const from = (location.state as { from?: string } | null)?.from ?? '/'
@@ -40,9 +55,15 @@ export function LoginPage() {
     <div className="login-screen">
       <div className="login-card">
         <div className="login-brand">
-          <div className="brand-mark">DG</div>
+          <div className="brand-mark">
+            {brand?.logo_url ? (
+              <img src={brand.logo_url} alt="" />
+            ) : (
+              (brand?.name ?? 'DG').slice(0, 2).toUpperCase()
+            )}
+          </div>
           <div>
-            <h1>Vereinsverwaltung</h1>
+            <h1>{brand?.name ?? 'Vereinsverwaltung'}</h1>
           </div>
         </div>
         <p className="login-sub">Bitte mit deinen Vereins-Zugangsdaten anmelden.</p>

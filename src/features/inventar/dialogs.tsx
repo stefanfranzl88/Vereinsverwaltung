@@ -2,6 +2,146 @@ import { useState, type FormEvent } from 'react'
 import { fullName, today } from '@/lib/format'
 import type { Item, ItemBorrow, ItemKind, Location } from '@/types'
 
+// ---------------------------------------------------------------
+// Gegenstand bearbeiten (inventar.manage)
+// ---------------------------------------------------------------
+export function EditItemDialog({
+  item,
+  locations,
+  borrowedQty,
+  saving,
+  onSave,
+  onClose,
+}: {
+  item: Item
+  locations: Location[]
+  /** Aktuell ausgeborgte Menge – Stückzahl darf nicht darunter fallen. */
+  borrowedQty: number
+  saving: boolean
+  onSave: (input: {
+    name: string
+    invNr: string
+    totalQty: number
+    unit: string
+    locationId: string | null
+    note: string
+  }) => void
+  onClose: () => void
+}) {
+  const [name, setName] = useState(item.name)
+  const [invNr, setInvNr] = useState(item.inv_nr)
+  const [qty, setQty] = useState(String(item.total_qty))
+  const [unit, setUnit] = useState(item.unit ?? '')
+  const [locationId, setLocationId] = useState(item.location_id ?? '')
+  const [note, setNote] = useState(item.note ?? '')
+
+  const n = Number(qty)
+  const minQty = Math.max(1, borrowedQty)
+  const qtyOk = Number.isInteger(n) && n >= minQty
+  const valid = name.trim().length > 0 && invNr.trim().length > 0 && qtyOk
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
+        <form
+          onSubmit={(e: FormEvent) => {
+            e.preventDefault()
+            onSave({
+              name: name.trim(),
+              invNr: invNr.trim(),
+              totalQty: n,
+              unit: unit.trim() || 'Stk',
+              locationId: locationId || null,
+              note: note.trim(),
+            })
+          }}
+        >
+          <div className="head">
+            <h3>✎ Gegenstand bearbeiten</h3>
+          </div>
+
+          <div className="body">
+            <div className="stack" style={{ marginTop: 8 }}>
+              <div>
+                <label htmlFor="ei-name">Bezeichnung</label>
+                <input id="ei-name" required value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+
+              <div className="form-grid">
+                <div>
+                  <label htmlFor="ei-nr">Inventarnummer</label>
+                  <input
+                    id="ei-nr"
+                    required
+                    value={invNr}
+                    onChange={(e) => setInvNr(e.target.value)}
+                    style={{ fontFamily: 'var(--font-mono)' }}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="ei-qty">
+                    {item.kind === 'geraet' ? 'Gesamtbestand' : 'Bestand'}
+                  </label>
+                  <input
+                    id="ei-qty"
+                    type="number"
+                    min={minQty}
+                    step={1}
+                    value={qty}
+                    onChange={(e) => setQty(e.target.value)}
+                  />
+                  {borrowedQty > 0 && (
+                    <p className="hint">Mind. {borrowedQty} – so viel ist aktuell ausgeborgt.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="form-grid">
+                <div>
+                  <label htmlFor="ei-unit">Einheit</label>
+                  <input id="ei-unit" value={unit} onChange={(e) => setUnit(e.target.value)} />
+                </div>
+                <div>
+                  <label htmlFor="ei-loc">Standort</label>
+                  <select
+                    id="ei-loc"
+                    value={locationId}
+                    onChange={(e) => setLocationId(e.target.value)}
+                  >
+                    <option value="">– kein Standort –</option>
+                    {locations.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="ei-note">Notiz</label>
+                <input id="ei-note" value={note} onChange={(e) => setNote(e.target.value)} />
+              </div>
+            </div>
+          </div>
+
+          <div className="foot">
+            <div className="row">
+              <button className="btn ghost small" type="button" onClick={onClose}>
+                Abbrechen
+              </button>
+              <div className="spacer" />
+              <button className="btn" type="submit" disabled={saving || !valid}>
+                {saving ? 'Speichern…' : 'Speichern'}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 interface ShellProps {
   title: string
   saving: boolean

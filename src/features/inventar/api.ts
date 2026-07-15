@@ -30,7 +30,9 @@ export async function fetchLocations(tenantId: string): Promise<Location[]> {
 export async function fetchItems(tenantId: string): Promise<Item[]> {
   const { data, error } = await supabase
     .from('items')
-    .select('id, tenant_id, inv_nr, name, kind, total_qty, unit, location_id, defect, note')
+    .select(
+      'id, tenant_id, inv_nr, name, kind, total_qty, unit, location_id, defect, note, retired_at',
+    )
     .eq('tenant_id', tenantId)
     .order('inv_nr')
     .returns<Item[]>()
@@ -104,6 +106,39 @@ export async function createItem(input: {
     p_unit: input.unit,
     p_location_id: input.location_id,
   })
+  if (error) throw error
+}
+
+/** Bearbeiten (inventar.manage). Änderungen kommen mit Diff in die Historie. */
+export async function updateItem(input: {
+  itemId: string
+  name: string
+  invNr: string
+  totalQty: number
+  unit: string
+  locationId: string | null
+  note: string
+}): Promise<void> {
+  const { error } = await supabase.rpc('update_item', {
+    p_item_id: input.itemId,
+    p_name: input.name,
+    p_inv_nr: input.invNr,
+    p_total_qty: input.totalQty,
+    p_unit: input.unit,
+    p_location_id: input.locationId,
+    p_note: input.note,
+  })
+  if (error) throw error
+}
+
+/** Ausscheiden (Soft Delete). Nur ohne aktive Ausleihen/Reservierungen. */
+export async function retireItem(itemId: string): Promise<void> {
+  const { error } = await supabase.rpc('retire_item', { p_item_id: itemId })
+  if (error) throw error
+}
+
+export async function reactivateItem(itemId: string): Promise<void> {
+  const { error } = await supabase.rpc('reactivate_item', { p_item_id: itemId })
   if (error) throw error
 }
 

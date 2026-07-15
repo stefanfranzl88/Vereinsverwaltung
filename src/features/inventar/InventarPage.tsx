@@ -22,14 +22,18 @@ import {
   itemsKey,
   locationsKey,
   moveItem,
+  reactivateItem,
   reportDefect,
   reservationsKey,
+  retireItem,
   returnItem,
   setItemNote,
+  updateItem,
 } from './api'
 import { printLabel } from './label'
 import {
   BorrowDialog,
+  EditItemDialog,
   ItemDialog,
   MoveDialog,
   ReservationDialog,
@@ -46,8 +50,12 @@ type Dialog =
   | { kind: 'defect'; item: Item }
   | { kind: 'move'; item: Item }
   | { kind: 'note'; item: Item }
+  | { kind: 'edit'; item: Item }
+  | { kind: 'retire'; item: Item }
   | { kind: 'scan'; item: Item }
   | null
+
+type Tab = 'aktiv' | 'archiv'
 
 export function InventarPage() {
   const { tenant, member: me, can } = useAuth()
@@ -62,6 +70,7 @@ export function InventarPage() {
   const [scanCode, setScanCode] = useState('')
   const [dialog, setDialog] = useState<Dialog>(null)
   const [openHistory, setOpenHistory] = useState<string | null>(null)
+  const [tab, setTab] = useState<Tab>('aktiv')
 
   const itemsQuery = useQuery({
     queryKey: itemsKey(tenantId),
@@ -132,8 +141,13 @@ export function InventarPage() {
   const matches = (i: Item) =>
     `${i.name} ${i.inv_nr}`.toLowerCase().includes(filter.trim().toLowerCase())
 
-  const devices = items.filter((i) => i.kind === 'geraet' && matches(i))
-  const supplies = items.filter((i) => i.kind === 'vorrat' && matches(i))
+  // Ausgeschiedene Artikel (retired_at) kommen in den Archiv-Reiter; aus den
+  // aktiven Listen und dem Scan sind sie ausgeblendet.
+  const activeItems = items.filter((i) => i.retired_at === null)
+  const archivedItems = items.filter((i) => i.retired_at !== null && matches(i))
+
+  const devices = activeItems.filter((i) => i.kind === 'geraet' && matches(i))
+  const supplies = activeItems.filter((i) => i.kind === 'vorrat' && matches(i))
 
   // ---------------------------------------------------------------
   // Mutationen
@@ -225,6 +239,24 @@ export function InventarPage() {
     onSuccess: done('Notiz gespeichert'),
     onError: fail,
   })
+  const updateM = useMutation({
+    mutationFn: updateItem,
+    onSuccess: done('Gespeichert'),
+    onError: fail,
+  })
+  const retireM = useMutation({
+    mutationFn: (itemId: string) => retireItem(itemId),
+    onSuccess: done('Artikel ausgeschieden'),
+    onError: fail,
+  })
+  const reactivateM = useMutation({
+    mutationFn: (itemId: string) => reactivateItem(itemId),
+    onSuccess: async () => {
+      await refresh()
+      toast('Artikel reaktiviert')
+    },
+    onError: fail,
+  })
 
   const label = async (item: Item) => {
     try {
@@ -247,6 +279,10 @@ export function InventarPage() {
       return
     }
     setScanCode('')
+    if (item.retired_at) {
+      toastError(`Artikel „${item.name}" ausgeschieden am ${fdate(item.retired_at)}`)
+      return
+    }
     setDialog({ kind: 'scan', item })
   }
 
@@ -367,6 +403,19 @@ export function InventarPage() {
               onClick={() => setDialog({ kind: 'move', item: i })}
             >
               Standort ändern
+            </button>
+          )}
+          {mayManage && (
+            <button className="btn ghost small" onClick={() => setDialog({ kind: 'edit', item: i })}>
+              ✎ Bearbeiten
+            </button>
+          )}
+          {mayManage && (
+            <button
+              className="btn ghost small"
+              onClick={() => setDialog({ kind: 'retire', item: i })}
+            >
+              🗄 Ausscheiden
             </button>
           )}
           <button
@@ -517,6 +566,14 @@ export function InventarPage() {
       )}
 
       <div className="row" style={{ marginBottom: 14 }}>
+        <div className="seg">
+          <button className={tab === 'aktiv' ? 'on' : ''} onClick={() => setTab('aktiv')}>
+            Aktiv ({activeItems.length})
+          </button>
+          <button className={tab === 'archiv' ? 'on' : ''} onClick={() => setTab('archiv')}>
+            🗄 Archiv ({items.length - activeItems.length})
+          </button>
+        </div>
         <input
           className="search"
           placeholder="Suchen (Name oder Nr.)…"
@@ -524,7 +581,7 @@ export function InventarPage() {
           onChange={(e) => setFilter(e.target.value)}
         />
         <div className="spacer" />
-        {mayManage && (
+        {mayManage && tab === 'aktiv' && (
           <>
             <button className="btn ghost small" onClick={() => setDialog({ kind: 'location' })}>
               + Standort
@@ -536,78 +593,168 @@ export function InventarPage() {
         )}
       </div>
 
-      <div className="card">
-        <h3>🛠 Geräte &amp; Ausstattung</h3>
-        {itemsQuery.isPending ? (
-          <p className="meta">Wird geladen…</p>
-        ) : devices.length === 0 ? (
-          <p className="meta">Keine Treffer.</p>
-        ) : (
-          devices.map(deviceRow)
-        )}
-      </div>
-
-      <div className="card">
-        <h3>🍺 Vorräte (z. B. Getränke fürs nächste Event)</h3>
-        {supplies.length === 0 ? (
-          <p className="meta">Keine Treffer.</p>
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Nr.</th>
-                  <th>Artikel</th>
-                  <th>Standort</th>
-                  <th style={{ textAlign: 'right' }}>Bestand</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {supplies.map((i) => (
-                  <tr key={i.id}>
-                    <td className="mono" style={{ fontSize: 12, color: 'var(--muted)' }}>
-                      {i.inv_nr}
-                    </td>
-                    <td>
-                      <b>{i.name}</b>
-                    </td>
-                    <td>
-                      <span className="pill grey">📍 {locationName(i.location_id)}</span>
-                    </td>
-                    <td
-                      className="amount"
-                      style={{ color: i.total_qty <= 2 ? 'var(--red)' : 'var(--ink)' }}
-                    >
-                      {i.total_qty} {i.unit ?? 'Stk'}
-                      {i.total_qty <= 2 && ' ⚠'}
-                    </td>
-                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <button
-                        className="btn ghost small"
-                        disabled={stockM.isPending || i.total_qty === 0}
-                        onClick={() => stockM.mutate({ itemId: i.id, delta: -1 })}
-                      >
-                        − Entnahme
-                      </button>
-                      <button
-                        className="btn ghost small"
-                        disabled={stockM.isPending}
-                        onClick={() => stockM.mutate({ itemId: i.id, delta: 1 })}
-                      >
-                        + Zugang
-                      </button>
-                      <button className="btn ghost small" onClick={() => void label(i)}>
-                        🏷
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {tab === 'aktiv' ? (
+        <>
+          <div className="card">
+            <h3>🛠 Geräte &amp; Ausstattung</h3>
+            {itemsQuery.isPending ? (
+              <p className="meta">Wird geladen…</p>
+            ) : devices.length === 0 ? (
+              <p className="meta">Keine Treffer.</p>
+            ) : (
+              devices.map(deviceRow)
+            )}
           </div>
-        )}
-      </div>
+
+          <div className="card">
+            <h3>🍺 Vorräte (z. B. Getränke fürs nächste Event)</h3>
+            {supplies.length === 0 ? (
+              <p className="meta">Keine Treffer.</p>
+            ) : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Nr.</th>
+                      <th>Artikel</th>
+                      <th>Standort</th>
+                      <th style={{ textAlign: 'right' }}>Bestand</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {supplies.map((i) => (
+                      <tr key={i.id}>
+                        <td className="mono" style={{ fontSize: 12, color: 'var(--muted)' }}>
+                          {i.inv_nr}
+                        </td>
+                        <td>
+                          <b>{i.name}</b>
+                        </td>
+                        <td>
+                          <span className="pill grey">📍 {locationName(i.location_id)}</span>
+                        </td>
+                        <td
+                          className="amount"
+                          style={{ color: i.total_qty <= 2 ? 'var(--red)' : 'var(--ink)' }}
+                        >
+                          {i.total_qty} {i.unit ?? 'Stk'}
+                          {i.total_qty <= 2 && ' ⚠'}
+                        </td>
+                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <button
+                            className="btn ghost small"
+                            disabled={stockM.isPending || i.total_qty === 0}
+                            onClick={() => stockM.mutate({ itemId: i.id, delta: -1 })}
+                          >
+                            − Entnahme
+                          </button>
+                          <button
+                            className="btn ghost small"
+                            disabled={stockM.isPending}
+                            onClick={() => stockM.mutate({ itemId: i.id, delta: 1 })}
+                          >
+                            + Zugang
+                          </button>
+                          {mayManage && (
+                            <button
+                              className="btn ghost small"
+                              onClick={() => setDialog({ kind: 'edit', item: i })}
+                            >
+                              ✎
+                            </button>
+                          )}
+                          {mayManage && (
+                            <button
+                              className="btn ghost small"
+                              onClick={() => setDialog({ kind: 'retire', item: i })}
+                            >
+                              🗄
+                            </button>
+                          )}
+                          <button className="btn ghost small" onClick={() => void label(i)}>
+                            🏷
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <div className="card">
+          <h3>🗄 Ausgeschiedene Artikel</h3>
+          {archivedItems.length === 0 ? (
+            <p className="meta">Keine ausgeschiedenen Artikel.</p>
+          ) : (
+            archivedItems.map((i) => {
+              const isOpen = openHistory === i.id
+              return (
+                <div className="list-item" key={i.id} style={{ flexWrap: 'wrap' }}>
+                  <div className="avatar">🗄</div>
+                  <div style={{ flex: 1, minWidth: 200 }}>
+                    <b>{i.name}</b>{' '}
+                    <span className="mono" style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+                      {i.inv_nr}
+                    </span>
+                    <div className="meta">
+                      {i.kind === 'geraet' ? 'Gerät' : 'Vorrat'} · ausgeschieden am{' '}
+                      {fdate(i.retired_at)}
+                    </div>
+                  </div>
+                  <div
+                    className="row"
+                    style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}
+                  >
+                    {mayManage && (
+                      <button
+                        className="btn small"
+                        disabled={reactivateM.isPending}
+                        onClick={() => reactivateM.mutate(i.id)}
+                      >
+                        ↩ Reaktivieren
+                      </button>
+                    )}
+                    <button
+                      className="btn ghost small"
+                      onClick={() => setOpenHistory(isOpen ? null : i.id)}
+                    >
+                      🕘 Historie
+                    </button>
+                  </div>
+                  {isOpen && (
+                    <div
+                      style={{
+                        flexBasis: '100%',
+                        background: '#F6F8F4',
+                        borderRadius: 10,
+                        padding: '10px 14px',
+                        marginTop: 8,
+                      }}
+                    >
+                      {historyQuery.isPending ? (
+                        <div className="meta">Wird geladen…</div>
+                      ) : (historyQuery.data ?? []).length === 0 ? (
+                        <div className="meta">Noch keine Einträge.</div>
+                      ) : (
+                        (historyQuery.data ?? []).map((h) => (
+                          <div className="meta" key={h.id} style={{ padding: '3px 0' }}>
+                            <span className="mono">{fdate(h.created_at.slice(0, 10))}</span> ·{' '}
+                            <b>{h.members ? fullName(h.members) : 'System'}</b> · {h.action}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })
+          )}
+        </div>
+      )}
 
       {/* ---------------- Dialoge ---------------- */}
 
@@ -730,7 +877,87 @@ export function InventarPage() {
           onClose={() => setDialog(null)}
         />
       )}
+
+      {dialog?.kind === 'edit' && (
+        <EditItemDialog
+          item={dialog.item}
+          locations={locations}
+          borrowedQty={(borrowsByItem.get(dialog.item.id) ?? []).reduce((s, b) => s + b.qty, 0)}
+          saving={updateM.isPending}
+          onSave={(input) => updateM.mutate({ itemId: dialog.item.id, ...input })}
+          onClose={() => setDialog(null)}
+        />
+      )}
+
+      {dialog?.kind === 'retire' && (
+        <RetireDialog
+          item={dialog.item}
+          borrowedQty={(borrowsByItem.get(dialog.item.id) ?? []).reduce((s, b) => s + b.qty, 0)}
+          activeReservations={reservationsOf(dialog.item.id).length}
+          saving={retireM.isPending}
+          onConfirm={() => retireM.mutate(dialog.item.id)}
+          onClose={() => setDialog(null)}
+        />
+      )}
     </>
+  )
+}
+
+/** Bestätigung fürs Ausscheiden; blockt bei aktiven Ausleihen/Reservierungen. */
+function RetireDialog({
+  item,
+  borrowedQty,
+  activeReservations,
+  saving,
+  onConfirm,
+  onClose,
+}: {
+  item: Item
+  borrowedQty: number
+  activeReservations: number
+  saving: boolean
+  onConfirm: () => void
+  onClose: () => void
+}) {
+  const blocked = borrowedQty > 0 || activeReservations > 0
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
+        <div className="head">
+          <h3>🗄 Artikel ausscheiden</h3>
+        </div>
+        <div className="body">
+          {blocked ? (
+            <div className="notice">
+              „{item.name}" kann nicht ausgeschieden werden:
+              {borrowedQty > 0 && <div>• noch {borrowedQty} Stück ausgeborgt</div>}
+              {activeReservations > 0 && (
+                <div>• {activeReservations} offene/aktive Reservierung(en)</div>
+              )}
+              <div style={{ marginTop: 6 }}>Erst zurücknehmen bzw. klären, dann ausscheiden.</div>
+            </div>
+          ) : (
+            <p style={{ fontSize: 14 }}>
+              „{item.name}" wird ausgeschieden und ins Archiv verschoben. Die komplette Historie
+              bleibt erhalten, der Artikel lässt sich später reaktivieren. Ausborgen und
+              Reservieren sind dann nicht mehr möglich.
+            </p>
+          )}
+        </div>
+        <div className="foot">
+          <div className="row">
+            <button className="btn ghost small" onClick={onClose}>
+              Abbrechen
+            </button>
+            <div className="spacer" />
+            <button className="btn danger" disabled={saving || blocked} onClick={onConfirm}>
+              {saving ? 'Wird ausgeschieden…' : 'Ausscheiden'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 

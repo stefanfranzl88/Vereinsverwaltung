@@ -18,6 +18,7 @@ import { UmfragenPage } from '@/features/umfragen/UmfragenPage'
 import { SchluesselPage } from '@/features/schluessel/SchluesselPage'
 import { DokumentePage } from '@/features/dokumente/DokumentePage'
 import { ChatPage } from '@/features/chat/ChatPage'
+import { EinstellungenPage } from '@/features/einstellungen/EinstellungenPage'
 export function App() {
   return (
     <Routes>
@@ -143,6 +144,14 @@ export function App() {
           element={
             <RequireAccess module="core" perm="roles.view">
               <RolesMatrixPage />
+            </RequireAccess>
+          }
+        />
+        <Route
+          path="einstellungen"
+          element={
+            <RequireAccess module="core" perm="roles.manage">
+              <EinstellungenPage />
             </RequireAccess>
           }
         />

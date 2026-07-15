@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import type { Role } from '@/auth/roles'
 import type { Member, MemberInput, MemberStatus } from '@/types'
 
 /** Reihenfolge des Vorstands – bestimmt auch die Sortierung in der Liste. */
@@ -17,7 +18,14 @@ const STATUS: MemberStatus[] = ['aktiv', 'ruhend', 'ausgetreten']
 interface Props {
   member: Member | null
   saving: boolean
-  onSave: (input: MemberInput) => void
+  /**
+   * Rollen zur Auswahl – NUR gesetzt, wenn der Bearbeiter roles.manage hat.
+   * Ohne diese Prop erscheint keine Rollenauswahl (das Mitglied bleibt bei
+   * seiner bisherigen bzw. der Standardrolle). Durchgesetzt zusätzlich per RLS.
+   */
+  roles?: Role[]
+  currentRoleKey?: string
+  onSave: (input: MemberInput, roleKey: string | null) => void
   onClose: () => void
 }
 
@@ -25,7 +33,14 @@ interface Props {
  * Ersetzt die prompt()-Ketten des Prototyps durch ein echtes Formular –
  * inklusive der Felder, die das Schema kennt (Status, Eintritt, Kontakt).
  */
-export function MemberFormDialog({ member, saving, onSave, onClose }: Props) {
+export function MemberFormDialog({
+  member,
+  saving,
+  roles,
+  currentRoleKey,
+  onSave,
+  onClose,
+}: Props) {
   const [form, setForm] = useState<MemberInput>({
     first_name: member?.first_name ?? '',
     last_name: member?.last_name ?? '',
@@ -35,21 +50,26 @@ export function MemberFormDialog({ member, saving, onSave, onClose }: Props) {
     status: member?.status ?? 'aktiv',
     funktion: member?.funktion ?? null,
   })
+  const [roleKey, setRoleKey] = useState(currentRoleKey ?? '')
 
   const set = <K extends keyof MemberInput>(key: K, value: MemberInput[K]) =>
     setForm((f) => ({ ...f, [key]: value }))
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    onSave({
-      ...form,
-      first_name: form.first_name.trim(),
-      last_name: form.last_name.trim(),
-      // Leere Textfelder als NULL speichern statt als leeren String.
-      email: form.email?.trim() || null,
-      phone: form.phone?.trim() || null,
-      funktion: form.funktion || null,
-    })
+    onSave(
+      {
+        ...form,
+        first_name: form.first_name.trim(),
+        last_name: form.last_name.trim(),
+        // Leere Textfelder als NULL speichern statt als leeren String.
+        email: form.email?.trim() || null,
+        phone: form.phone?.trim() || null,
+        funktion: form.funktion || null,
+      },
+      // Rolle nur mitgeben, wenn die Auswahl überhaupt gezeigt wurde.
+      roles ? roleKey : null,
+    )
   }
 
   return (
@@ -135,6 +155,24 @@ export function MemberFormDialog({ member, saving, onSave, onClose }: Props) {
                   ))}
                 </select>
               </div>
+
+              {/* Rollenauswahl nur mit roles.manage – sonst gar nicht sichtbar. */}
+              {roles && (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label htmlFor="role">Rolle (Rechte)</label>
+                  <select id="role" value={roleKey} onChange={(e) => setRoleKey(e.target.value)}>
+                    <option value="">– Mitglied (keine Sonderrechte) –</option>
+                    {roles.map((r) => (
+                      <option key={r.id} value={r.key}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="hint">
+                    Bestimmt die Rechte in der App. Getrennt von der Funktion (Anzeige).
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

@@ -4,25 +4,32 @@ import { useAuth } from '@/auth/context'
 import { useToast } from '@/components/Toast'
 import { Avatar } from '@/components/Avatar'
 import { fdate, fullName } from '@/lib/format'
+import { fetchRoles, rolesKey } from '@/features/roles/api'
 import type { Member, MemberInput } from '@/types'
 import {
   accountStatesKey,
   createMember,
   fetchKeyChips,
   fetchMemberAccountStates,
+  fetchMemberRoleKeys,
   fetchMembers,
   inviteMember,
   keyChipsKey,
+  memberExit,
+  memberGdprDelete,
+  memberRolesKey,
   membersKey,
+  setMemberRole,
   updateDekade,
   updateMember,
   uploadAvatar,
 } from './api'
 import { FUNK_ORDER, MemberFormDialog } from './MemberFormDialog'
 import { DekadeDialog } from './DekadeDialog'
+import { OffboardDialog } from './OffboardDialog'
 
 export function MembersPage() {
-  const { tenant, member: me, can, hasModule, refresh } = useAuth()
+  const { tenant, member: me, profile, can, hasModule, refresh } = useAuth()
   const { toast, toastError } = useToast()
   const queryClient = useQueryClient()
 
@@ -30,11 +37,25 @@ export function MembersPage() {
   const [editing, setEditing] = useState<Member | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dekadeOpen, setDekadeOpen] = useState(false)
+  const [offboard, setOffboard] = useState<{ mode: 'exit' | 'gdpr'; member: Member } | null>(null)
 
   const tenantId = tenant?.id ?? ''
   const mayEdit = can('members.edit')
   const mayManage = can('roles.manage')
+  const isSysadmin = profile?.is_sysadmin ?? false
   const hasKeys = hasModule('schluessel')
+
+  // Rollen + aktuelle Rollenzuordnung – nur mit roles.manage relevant.
+  const { data: roles = [] } = useQuery({
+    queryKey: rolesKey(tenantId),
+    queryFn: () => fetchRoles(tenantId),
+    enabled: Boolean(tenantId) && mayManage,
+  })
+  const { data: memberRoleKeys = new Map<string, string>() } = useQuery({
+    queryKey: memberRolesKey(tenantId),
+    queryFn: fetchMemberRoleKeys,
+    enabled: Boolean(tenantId) && mayManage,
+  })
 
   const {
     data: members = [],
@@ -80,15 +101,40 @@ export function MembersPage() {
   })
 
   const saveMutation = useMutation({
-    mutationFn: (input: MemberInput) =>
-      editing ? updateMember(editing.id, input) : createMember(tenantId, input),
+    // roleKey ist null, wenn der Dialog keine Rollenauswahl zeigte (kein
+    // roles.manage) – dann bleibt die Rollenzuordnung unangetastet.
+    mutationFn: async ({ input, roleKey }: { input: MemberInput; roleKey: string | null }) => {
+      const saved = editing
+        ? await updateMember(editing.id, input)
+        : await createMember(tenantId, input)
+      if (roleKey !== null) await setMemberRole(saved.id, roleKey)
+      return saved
+    },
     onSuccess: async () => {
-      await invalidate()
+      await Promise.all([
+        invalidate(),
+        queryClient.invalidateQueries({ queryKey: memberRolesKey(tenantId) }),
+      ])
       toast(editing ? 'Gespeichert' : 'Mitglied angelegt')
       setDialogOpen(false)
       setEditing(null)
     },
     onError: (e: Error) => toastError(`Speichern fehlgeschlagen: ${e.message}`),
+  })
+
+  const offboardMutation = useMutation({
+    mutationFn: ({ mode, member }: { mode: 'exit' | 'gdpr'; member: Member }) =>
+      mode === 'exit' ? memberExit(member.id) : memberGdprDelete(member.id),
+    onSuccess: async (_d, vars) => {
+      await Promise.all([
+        invalidate(),
+        queryClient.invalidateQueries({ queryKey: accountStatesKey(tenantId) }),
+        queryClient.invalidateQueries({ queryKey: memberRolesKey(tenantId) }),
+      ])
+      setOffboard(null)
+      toast(vars.mode === 'exit' ? 'Austritt erfasst' : 'Mitglied DSGVO-konform gelöscht')
+    },
+    onError: (e: Error) => toastError(e.message),
   })
 
   const avatarMutation = useMutation({
@@ -246,6 +292,25 @@ export function MembersPage() {
               <button className="btn ghost small" onClick={() => openEdit(m)}>
                 Bearbeiten
               </button>
+              {/* Austritt: nicht bei sich selbst, nicht bei bereits Ausgetretenen. */}
+              {m.status !== 'ausgetreten' && m.id !== me?.id && (
+                <button
+                  className="btn ghost small"
+                  title="Austritt erfassen (Zugang entfernen)"
+                  onClick={() => setOffboard({ mode: 'exit', member: m })}
+                >
+                  Austritt
+                </button>
+              )}
+              {isSysadmin && m.id !== me?.id && (
+                <button
+                  className="btn ghost small danger"
+                  title="DSGVO-Löschung (anonymisieren)"
+                  onClick={() => setOffboard({ mode: 'gdpr', member: m })}
+                >
+                  🗑
+                </button>
+              )}
             </div>
           </td>
         )}
@@ -359,7 +424,9 @@ export function MembersPage() {
         <MemberFormDialog
           member={editing}
           saving={saveMutation.isPending}
-          onSave={(input) => saveMutation.mutate(input)}
+          roles={mayManage ? roles : undefined}
+          currentRoleKey={editing ? (memberRoleKeys.get(editing.id) ?? '') : ''}
+          onSave={(input, roleKey) => saveMutation.mutate({ input, roleKey })}
           onClose={() => {
             setDialogOpen(false)
             setEditing(null)
@@ -373,6 +440,16 @@ export function MembersPage() {
           saving={dekadeMutation.isPending}
           onSave={(d) => dekadeMutation.mutate(d)}
           onClose={() => setDekadeOpen(false)}
+        />
+      )}
+
+      {offboard && (
+        <OffboardDialog
+          mode={offboard.mode}
+          member={offboard.member}
+          saving={offboardMutation.isPending}
+          onConfirm={() => offboardMutation.mutate(offboard)}
+          onClose={() => setOffboard(null)}
         />
       )}
     </>

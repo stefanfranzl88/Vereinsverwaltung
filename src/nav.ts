@@ -61,6 +61,14 @@ export const NAV: NavItem[] = [
     module: 'core',
     perm: 'roles.view',
   },
+  {
+    id: 'einstellungen',
+    path: '/einstellungen',
+    ico: '🏛',
+    label: 'Einstellungen',
+    module: 'core',
+    perm: 'roles.manage',
+  },
 ]
 
 export function visibleNav(

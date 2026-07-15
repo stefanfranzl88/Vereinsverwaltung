@@ -42,6 +42,10 @@ Evidenz, nicht einzeln bestätigt) · `[ ]` offen / unbestätigt
 | 0015 | `0015_chat.sql` | RLS Chat + Realtime-Publication | [~] |
 | 0016 | `0016_member_invitations.sql` | member_account_states() für Einladungen | [ ] |
 | 0017 | `0017_fix_news_write_policies.sql` | **news-Schreib-Policies fixen** + Audit aller Schreib-Policies | [ ] |
+| 0018 | `0018_inventar_archive.sql` | Inventar bearbeiten/ausscheiden/reaktivieren (retired_at + Funktionen) | [ ] |
+| 0019 | `0019_tenant_settings.sql` | logos-Bucket + login_branding() + tenants_update | [ ] |
+| 0020 | `0020_member_roles_offboarding.sql` | set_member_role() + member_roles-RLS | [ ] |
+| 0021 | `0021_mitarbeit_config.sql` | konfigurierbare Mitarbeitspunkte (member_points neu, create_protocol lockert Arten) | [ ] |
 
 `[~]` beruht auf deinem activate-Report („RLS überall an") – das belegt, dass die
 RLS-aktivierenden Migrationen liefen, aber nicht jede einzeln. Sag Bescheid,
@@ -49,11 +53,18 @@ welche du sicher eingespielt hast, dann setze ich sie auf `[x]`.
 
 ## Offen – bitte einspielen
 
-- [ ] **`0016_member_invitations.sql`** – nötig, damit die Account-Status-Anzeige
-  (aktiv/eingeladen) in der Mitgliederliste funktioniert.
-- [ ] **`0017_fix_news_write_policies.sql`** – behebt den RLS-Fehler beim
-  Veröffentlichen von Mitteilungen. Danach optional **`test_news_insert.sql`**
-  zum Verifizieren.
+- [ ] **`0016_member_invitations.sql`** – Account-Status (aktiv/eingeladen).
+- [ ] **`0017_fix_news_write_policies.sql`** – RLS-Fehler beim Veröffentlichen.
+- [ ] **`0018_inventar_archive.sql`** – Inventar bearbeiten/ausscheiden.
+- [ ] **`0019_tenant_settings.sql`** – Grundeinstellungen + logos-Bucket.
+- [ ] **`0020_member_roles_offboarding.sql`** – Rollenzuweisung im Dialog.
+- [ ] **`0021_mitarbeit_config.sql`** – konfigurierbare Mitarbeitspunkte.
+
+## Edge Functions (per CLI deployen, siehe jeweiliges README)
+
+- [ ] **`invite-member`** – Mitglieder einladen (braucht `APP_URL`-Secret + Redirect-URL).
+- [ ] **`member-offboard`** – Austritt & DSGVO-Löschung (service_role wird
+  automatisch injiziert; kein Extra-Secret nötig).
 
 ## Optionale Demo-Seeds (nur Beispieldaten, keine Pflicht)
 
