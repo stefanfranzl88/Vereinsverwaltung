@@ -23,12 +23,14 @@ import {
   locationsKey,
   moveItem,
   reactivateItem,
+  removeItemPhoto,
   reportDefect,
   reservationsKey,
   retireItem,
   returnItem,
   setItemNote,
   updateItem,
+  uploadItemPhoto,
 } from './api'
 import { printLabel } from './label'
 import {
@@ -40,6 +42,7 @@ import {
   ReturnDialog,
   TextDialog,
 } from './dialogs'
+import { ItemPhotoLarge, ItemThumb } from './ItemPhoto'
 
 type Dialog =
   | { kind: 'item' }
@@ -168,7 +171,18 @@ export function InventarPage() {
   }
 
   const itemM = useMutation({
-    mutationFn: createItem,
+    mutationFn: async (input: {
+      name: string
+      kind: Item['kind']
+      qty: number
+      unit: string
+      location_id: string | null
+      photoFile: File | null
+    }) => {
+      const { photoFile, ...rest } = input
+      const id = await createItem(rest)
+      if (photoFile) await uploadItemPhoto(tenantId, id, photoFile, null)
+    },
     onSuccess: done('Gegenstand angelegt'),
     onError: fail,
   })
@@ -240,7 +254,23 @@ export function InventarPage() {
     onError: fail,
   })
   const updateM = useMutation({
-    mutationFn: updateItem,
+    mutationFn: async (input: {
+      itemId: string
+      name: string
+      invNr: string
+      totalQty: number
+      unit: string
+      locationId: string | null
+      note: string
+      photoFile: File | null
+      removePhoto: boolean
+      currentPhotoPath: string | null
+    }) => {
+      const { photoFile, removePhoto, currentPhotoPath, ...rest } = input
+      await updateItem(rest)
+      if (photoFile) await uploadItemPhoto(tenantId, rest.itemId, photoFile, currentPhotoPath)
+      else if (removePhoto) await removeItemPhoto(rest.itemId, currentPhotoPath)
+    },
     onSuccess: done('Gespeichert'),
     onError: fail,
   })
@@ -309,7 +339,7 @@ export function InventarPage() {
 
     return (
       <div className="list-item" key={i.id} style={{ flexWrap: 'wrap' }}>
-        <div className="avatar">{i.defect ? '⚠️' : '📦'}</div>
+        <ItemThumb path={i.photo_path} fallback={i.defect ? '⚠️' : '📦'} />
 
         <div style={{ flex: 1, minWidth: 200 }}>
           <b>{i.name}</b>{' '}
@@ -629,7 +659,10 @@ export function InventarPage() {
                           {i.inv_nr}
                         </td>
                         <td>
-                          <b>{i.name}</b>
+                          <div className="row" style={{ gap: 8 }}>
+                            <ItemThumb path={i.photo_path} fallback="🍺" size={32} />
+                            <b>{i.name}</b>
+                          </div>
                         </td>
                         <td>
                           <span className="pill grey">📍 {locationName(i.location_id)}</span>
@@ -694,7 +727,7 @@ export function InventarPage() {
               const isOpen = openHistory === i.id
               return (
                 <div className="list-item" key={i.id} style={{ flexWrap: 'wrap' }}>
-                  <div className="avatar">🗄</div>
+                  <ItemThumb path={i.photo_path} fallback="🗄" />
                   <div style={{ flex: 1, minWidth: 200 }}>
                     <b>{i.name}</b>{' '}
                     <span className="mono" style={{ fontSize: 11.5, color: 'var(--muted)' }}>
@@ -884,7 +917,13 @@ export function InventarPage() {
           locations={locations}
           borrowedQty={(borrowsByItem.get(dialog.item.id) ?? []).reduce((s, b) => s + b.qty, 0)}
           saving={updateM.isPending}
-          onSave={(input) => updateM.mutate({ itemId: dialog.item.id, ...input })}
+          onSave={(input) =>
+            updateM.mutate({
+              itemId: dialog.item.id,
+              currentPhotoPath: dialog.item.photo_path,
+              ...input,
+            })
+          }
           onClose={() => setDialog(null)}
         />
       )}
@@ -1006,6 +1045,12 @@ function ScanResultDialog({
           )}
           {item.note && <p className="meta">📝 {item.note}</p>}
         </div>
+
+        {item.photo_path && (
+          <div className="body">
+            <ItemPhotoLarge path={item.photo_path} />
+          </div>
+        )}
 
         <div className="foot" style={{ marginTop: 0 }}>
           <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>

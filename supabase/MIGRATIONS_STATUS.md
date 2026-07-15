@@ -42,11 +42,13 @@ Evidenz, nicht einzeln bestätigt) · `[ ]` offen / unbestätigt
 | 0015 | `0015_chat.sql` | RLS Chat + Realtime-Publication | [~] |
 | 0016 | `0016_member_invitations.sql` | member_account_states() für Einladungen | [ ] |
 | 0017 | `0017_fix_news_write_policies.sql` | **news-Schreib-Policies fixen** + Audit aller Schreib-Policies | [ ] |
-| 0018 | `0018_inventar_archive.sql` | Inventar bearbeiten/ausscheiden/reaktivieren (retired_at + Funktionen) | [ ] |
+| 0018 | `0018_inventar_archive.sql` | Inventar bearbeiten/ausscheiden/reaktivieren (retired_at + Funktionen) · **DATEIVERSION 3**: droppt zusätzlich die alte `_inv_lock_item(uuid)` (sonst Overload-Mehrdeutigkeit) | [ ] |
 | 0019 | `0019_tenant_settings.sql` | logos-Bucket + login_branding() + tenants_update | [ ] |
 | 0020 | `0020_member_roles_offboarding.sql` | set_member_role() + member_roles-RLS | [ ] |
 | 0021 | `0021_mitarbeit_config.sql` | konfigurierbare Mitarbeitspunkte (member_points neu, create_protocol lockert Arten) | [ ] |
 | 0022 | `0022_member_invited_at.sql` | member_account_states() um invited_at erweitert (Erneut-einladen-Button) | [ ] |
+| 0023 | `0023_inventar_photos.sql` | Artikelfotos: items.photo_path + Bucket `item-photos` + Policies (lesen Mitglieder/Modul, schreiben inventar.manage) | [ ] |
+| 0024 | `0024_presence.sql` | Online-Präsenz: member_presence + touch_presence()/member_last_seen()/set_presence_enabled() | [ ] |
 
 `[~]` beruht auf deinem activate-Report („RLS überall an") – das belegt, dass die
 RLS-aktivierenden Migrationen liefen, aber nicht jede einzeln. Sag Bescheid,
@@ -60,6 +62,9 @@ welche du sicher eingespielt hast, dann setze ich sie auf `[x]`.
 - [ ] **`0019_tenant_settings.sql`** – Grundeinstellungen + logos-Bucket.
 - [ ] **`0020_member_roles_offboarding.sql`** – Rollenzuweisung im Dialog.
 - [ ] **`0021_mitarbeit_config.sql`** – konfigurierbare Mitarbeitspunkte.
+- [ ] **`0022_member_invited_at.sql`** – invited_at für „Erneut einladen".
+- [ ] **`0023_inventar_photos.sql`** – Artikelfotos (Spalte + Bucket + Policies).
+- [ ] **`0024_presence.sql`** – Online-Präsenz (Tabelle + Funktionen).
 
 ## Edge Functions (per CLI deployen, siehe jeweiliges README)
 

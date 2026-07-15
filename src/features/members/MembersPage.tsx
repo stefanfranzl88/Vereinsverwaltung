@@ -3,8 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/auth/context'
 import { useToast } from '@/components/Toast'
 import { Avatar } from '@/components/Avatar'
-import { fdate, fullName } from '@/lib/format'
+import { fdate, fullName, relTime } from '@/lib/format'
 import { fetchRoles, rolesKey } from '@/features/roles/api'
+import { usePresence } from '@/features/presence/PresenceProvider'
+import { fetchLastSeen, lastSeenKey } from '@/features/presence/api'
 import type { Member, MemberInput } from '@/types'
 import {
   accountStatesKey,
@@ -32,6 +34,7 @@ export function MembersPage() {
   const { tenant, member: me, profile, can, hasModule, refresh } = useAuth()
   const { toast, toastError } = useToast()
   const queryClient = useQueryClient()
+  const { enabled: presenceEnabled, onlineIds } = usePresence()
 
   const [filter, setFilter] = useState('')
   const [editing, setEditing] = useState<Member | null>(null)
@@ -87,6 +90,14 @@ export function MembersPage() {
     queryKey: accountStatesKey(tenantId),
     queryFn: fetchMemberAccountStates,
     enabled: Boolean(tenantId) && mayEdit,
+  })
+
+  // „Zuletzt online" ist Verwaltungsinfo – nur roles.manage/Systemadmin lädt es
+  // (die DB-Funktion gibt anderen ohnehin nichts zurück).
+  const { data: lastSeen = new Map<string, string>() } = useQuery({
+    queryKey: lastSeenKey(tenantId),
+    queryFn: fetchLastSeen,
+    enabled: Boolean(tenantId) && mayManage,
   })
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: membersKey(tenantId) })
@@ -210,6 +221,8 @@ export function MembersPage() {
   const renderRow = (m: Member) => {
     const isMe = me?.id === m.id
     const chip = chipByMember.get(m.id)
+    const online = presenceEnabled && onlineIds.has(m.id)
+    const seen = mayManage ? lastSeen.get(m.id) : undefined
     // Zugangsstatus: kein Eintrag = noch kein Login. Nur für Verwalter geladen.
     const state = mayEdit ? accountStates.get(m.id) : undefined
     const account = state?.status
@@ -223,7 +236,28 @@ export function MembersPage() {
           <Avatar member={m} size={40} showMedal />
         </td>
         <td>
+          {online && (
+            <span
+              title="Gerade online"
+              style={{
+                display: 'inline-block',
+                width: 9,
+                height: 9,
+                borderRadius: '50%',
+                background: 'var(--pine, #2e7d32)',
+                marginRight: 6,
+                verticalAlign: 'middle',
+              }}
+            />
+          )}
           <b>{fullName(m)}</b>
+
+          {/* „Zuletzt online" ist reine Verwaltungsinfo (roles.manage). */}
+          {seen && !online && (
+            <div className="meta" style={{ marginTop: 2 }}>
+              zuletzt online {relTime(seen)}
+            </div>
+          )}
 
           {chip && (
             <span

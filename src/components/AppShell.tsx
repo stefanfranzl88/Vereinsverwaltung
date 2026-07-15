@@ -4,6 +4,7 @@ import { useAuth } from '@/auth/context'
 import { visibleNav } from '@/nav'
 import { fullName } from '@/lib/format'
 import { fetchInvoices, invoicesKey } from '@/features/invoices/api'
+import { PresenceProvider } from '@/features/presence/PresenceProvider'
 
 export function AppShell() {
   const { tenant, member, roleLabel, can, hasModule, signOut } = useAuth()
@@ -29,7 +30,7 @@ export function AppShell() {
   const linkClass = ({ isActive }: { isActive: boolean }) => (isActive ? 'active' : '')
 
   return (
-    <>
+    <PresenceProvider>
       <header className="topbar">
         <div className="brand-mark">
           {tenant?.logo_url ? <img src={tenant.logo_url} alt="" /> : brand.slice(0, 2).toUpperCase()}
@@ -69,6 +70,6 @@ export function AppShell() {
           </NavLink>
         ))}
       </nav>
-    </>
+    </PresenceProvider>
   )
 }

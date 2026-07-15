@@ -1,5 +1,5 @@
 -- =====================================================================
--- >>> DATEIVERSION: 2  (RAISE-Platzhalter korrigiert: % statt %%) <<<
+-- >>> DATEIVERSION: 3  (RAISE-Platzhalter %; alte _inv_lock_item(uuid) gedroppt) <<<
 -- Wenn diese Zeile in deinem SQL-Editor NICHT steht, führst du noch die alte
 -- Fassung aus – dann kompletten Editor-Inhalt löschen und diese Datei einfügen.
 -- =====================================================================
@@ -53,6 +53,19 @@ begin
   return v_item;
 end
 $$;
+
+-- Die einparametrige Fassung aus 0009 MUSS weg: die neue Version hat mit dem
+-- zusätzlichen (defaulteten) Parameter eine ANDERE Signatur – create or replace
+-- ersetzt sie also NICHT, beide existierten sonst nebeneinander. Ein Aufruf mit
+-- einem Argument (borrow_item, return_item, change_stock, …) wäre dann
+-- mehrdeutig: "function _inv_lock_item(uuid) is not unique". Nach dem Drop
+-- lösen die Ein-Argument-Aufrufe eindeutig auf die neue Fassung auf
+-- (p_allow_retired greift per Default = false). Idempotent dank if exists.
+drop function if exists _inv_lock_item(uuid);
+
+-- Gleiche Absicherung wie in 0009: der Helfer ist rein intern (nur von den
+-- security-definer-Funktionen aufgerufen), nicht direkt für authenticated.
+revoke all on function _inv_lock_item(uuid, boolean) from public;
 
 
 -- =====================================================================

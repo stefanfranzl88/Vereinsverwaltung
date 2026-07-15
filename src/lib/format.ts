@@ -23,6 +23,24 @@ export const monthShort = (iso: string) =>
 /** "19:00" aus einer Postgres-time ("19:00:00"). */
 export const ftime = (t: string | null) => (t ? t.slice(0, 5) : null)
 
+/**
+ * Grobe „vor X"-Angabe aus einem Zeitstempel (timestamptz). Für „zuletzt
+ * online". Ab einer Woche wird das Datum gezeigt.
+ */
+export const relTime = (ts: string | null): string => {
+  if (!ts) return '–'
+  const then = new Date(ts).getTime()
+  if (Number.isNaN(then)) return '–'
+  const mins = Math.floor((Date.now() - then) / 60_000)
+  if (mins < 1) return 'gerade eben'
+  if (mins < 60) return `vor ${mins} Min`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `vor ${hours} Std`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `vor ${days} ${days === 1 ? 'Tag' : 'Tagen'}`
+  return fdate(ts.slice(0, 10))
+}
+
 /** Ganze Tage zwischen einem Datum und heute (positiv = liegt in der Vergangenheit). */
 export const daysSince = (iso: string): number => {
   const then = new Date(`${iso}T00:00`).getTime()

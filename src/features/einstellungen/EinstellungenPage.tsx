@@ -8,6 +8,7 @@ import {
   type MitarbeitConfig,
   type RewardTier,
 } from '@/features/mitarbeit/config'
+import { setPresenceEnabled } from '@/features/presence/api'
 import {
   removeLogo,
   renameAttendanceType,
@@ -55,6 +56,9 @@ export function EinstellungenPage() {
   const [newType, setNewType] = useState('')
   const [renaming, setRenaming] = useState<{ type: string; value: string } | null>(null)
 
+  // ---- Online-Präsenz (vereinsweiter Schalter) ----
+  const [presenceOn, setPresenceOn] = useState(tenant?.settings?.presence_enabled !== false)
+
   // ---------------------------------------------------------------
   // Mutationen
   // ---------------------------------------------------------------
@@ -79,6 +83,19 @@ export function EinstellungenPage() {
       toast('Erinnerungsintervall gespeichert')
     },
     onError: (e: Error) => toastError(e.message),
+  })
+
+  const presenceM = useMutation({
+    mutationFn: (on: boolean) => setPresenceEnabled(on),
+    onSuccess: async () => {
+      await refresh()
+      toast('Präsenz-Einstellung gespeichert')
+    },
+    // Bei Fehler den Schalter optisch zurücksetzen.
+    onError: (e: Error) => {
+      setPresenceOn(tenant?.settings?.presence_enabled !== false)
+      toastError(e.message)
+    },
   })
 
   const logoM = useMutation({
@@ -228,6 +245,30 @@ export function EinstellungenPage() {
             <p className="hint">Wird in der Topbar und auf der Login-Seite angezeigt.</p>
           </div>
         </div>
+      </div>
+
+      {/* ---------------- Online-Präsenz ---------------- */}
+      <div className="card">
+        <h3>🟢 Online-Präsenz</h3>
+        <label className="consent-check" style={{ marginBottom: 0 }}>
+          <input
+            type="checkbox"
+            checked={presenceOn}
+            disabled={presenceM.isPending}
+            onChange={(e) => {
+              setPresenceOn(e.target.checked)
+              presenceM.mutate(e.target.checked)
+            }}
+          />
+          <span>
+            Anzeigen, wer gerade online ist – grüner Punkt in der Mitgliederliste und Zähler am
+            Dashboard. „Zuletzt online" bleibt ausschließlich für die Verwaltung sichtbar.
+          </span>
+        </label>
+        <p className="hint">
+          Schaltet die Präsenz-Anzeige vereinsweit für alle Mitglieder ab. Jeder Verein entscheidet
+          das selbst.
+        </p>
       </div>
 
       {/* ---------------- Schlüssel-Erinnerung ---------------- */}

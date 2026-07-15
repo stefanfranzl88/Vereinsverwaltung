@@ -12,9 +12,11 @@ import { NewsCard } from '@/features/news/NewsCard'
 import { MyAssignmentsCard } from '@/features/bigevents/MyAssignmentsCard'
 import { OpenSurveysNotice } from '@/features/umfragen/OpenSurveysNotice'
 import { KeyLogReminder } from '@/features/schluessel/KeyLogReminder'
+import { usePresence } from '@/features/presence/PresenceProvider'
 
 export function DashboardPage() {
   const { tenant, member: me, roleLabel } = useAuth()
+  const { enabled: presenceEnabled, onlineCount } = usePresence()
   const tenantId = tenant?.id ?? ''
   const memberId = me?.id ?? ''
   const iso = today()
@@ -84,6 +86,14 @@ export function DashboardPage() {
         })}{' '}
         · Angemeldet als {roleLabel}
       </p>
+
+      {presenceEnabled && (
+        <div className="row" style={{ marginBottom: 14 }}>
+          <span className="pill green">
+            🟢 {onlineCount} {onlineCount === 1 ? 'Mitglied' : 'Mitglieder'} gerade online
+          </span>
+        </div>
+      )}
 
       <div className="grid3" style={{ marginBottom: 16 }}>
         <div className="stat">

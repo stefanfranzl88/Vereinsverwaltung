@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { downscaleImage } from '@/lib/image'
 import type {
   Item,
   ItemBorrow,
@@ -31,7 +32,7 @@ export async function fetchItems(tenantId: string): Promise<Item[]> {
   const { data, error } = await supabase
     .from('items')
     .select(
-      'id, tenant_id, inv_nr, name, kind, total_qty, unit, location_id, defect, note, retired_at',
+      'id, tenant_id, inv_nr, name, kind, total_qty, unit, location_id, defect, note, retired_at, photo_path',
     )
     .eq('tenant_id', tenantId)
     .order('inv_nr')
@@ -98,14 +99,57 @@ export async function createItem(input: {
   qty: number
   unit: string
   location_id: string | null
-}): Promise<void> {
-  const { error } = await supabase.rpc('create_item', {
+}): Promise<string> {
+  const { data, error } = await supabase.rpc('create_item', {
     p_name: input.name,
     p_kind: input.kind,
     p_qty: input.qty,
     p_unit: input.unit,
     p_location_id: input.location_id,
   })
+  if (error) throw error
+  // create_item liefert die neue items-Zeile zurück – die id brauchen wir, um
+  // ein direkt mitgeschicktes Foto unter {tenant}/{item}… abzulegen.
+  return (data as { id: string }).id
+}
+
+/**
+ * Artikelfoto hochladen: clientseitig verkleinern, in den Bucket "item-photos"
+ * legen ({tenant}/{item}-<ts>.jpg) und photo_path am Artikel setzen. Der
+ * Zeitstempel im Dateinamen erzwingt einen neuen Pfad, damit ein ersetztes Foto
+ * nicht aus einer alten signierten URL / dem Browsercache kommt.
+ * Der items-Update läuft über die items_write-Policy (inventar.manage).
+ */
+export async function uploadItemPhoto(
+  tenantId: string,
+  itemId: string,
+  file: File,
+  oldPath: string | null,
+): Promise<string> {
+  const blob = await downscaleImage(file)
+  const path = `${tenantId}/${itemId}-${Date.now()}.jpg`
+
+  const { error: upErr } = await supabase.storage
+    .from('item-photos')
+    .upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
+  if (upErr) throw upErr
+
+  const { error } = await supabase.from('items').update({ photo_path: path }).eq('id', itemId)
+  if (error) throw error
+
+  // Alte Datei best effort aufräumen (nie den Speichern-Erfolg daran hängen).
+  if (oldPath && oldPath !== path) {
+    await supabase.storage.from('item-photos').remove([oldPath]).catch(() => {})
+  }
+  return path
+}
+
+/** Artikelfoto entfernen (Datei löschen + photo_path zurücksetzen). */
+export async function removeItemPhoto(itemId: string, path: string | null): Promise<void> {
+  if (path) {
+    await supabase.storage.from('item-photos').remove([path]).catch(() => {})
+  }
+  const { error } = await supabase.from('items').update({ photo_path: null }).eq('id', itemId)
   if (error) throw error
 }
 

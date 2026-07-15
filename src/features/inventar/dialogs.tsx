@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { fullName, today } from '@/lib/format'
 import type { Item, ItemBorrow, ItemKind, Location } from '@/types'
+import { ItemPhotoField } from './ItemPhoto'
 
 // ---------------------------------------------------------------
 // Gegenstand bearbeiten (inventar.manage)
@@ -25,6 +26,8 @@ export function EditItemDialog({
     unit: string
     locationId: string | null
     note: string
+    photoFile: File | null
+    removePhoto: boolean
   }) => void
   onClose: () => void
 }) {
@@ -34,6 +37,8 @@ export function EditItemDialog({
   const [unit, setUnit] = useState(item.unit ?? '')
   const [locationId, setLocationId] = useState(item.location_id ?? '')
   const [note, setNote] = useState(item.note ?? '')
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
+  const [removePhoto, setRemovePhoto] = useState(false)
 
   const n = Number(qty)
   const minQty = Math.max(1, borrowedQty)
@@ -53,6 +58,8 @@ export function EditItemDialog({
               unit: unit.trim() || 'Stk',
               locationId: locationId || null,
               note: note.trim(),
+              photoFile,
+              removePhoto,
             })
           }}
         >
@@ -122,6 +129,20 @@ export function EditItemDialog({
                 <label htmlFor="ei-note">Notiz</label>
                 <input id="ei-note" value={note} onChange={(e) => setNote(e.target.value)} />
               </div>
+
+              <ItemPhotoField
+                existingPath={item.photo_path}
+                file={photoFile}
+                removed={removePhoto}
+                onPick={(f) => {
+                  setPhotoFile(f)
+                  setRemovePhoto(false)
+                }}
+                onRemove={() => {
+                  setPhotoFile(null)
+                  setRemovePhoto(true)
+                }}
+              />
             </div>
           </div>
 
@@ -205,6 +226,7 @@ export function ItemDialog({
     qty: number
     unit: string
     location_id: string | null
+    photoFile: File | null
   }) => void
   onClose: () => void
 }) {
@@ -213,6 +235,7 @@ export function ItemDialog({
   const [qty, setQty] = useState('1')
   const [unit, setUnit] = useState('Stk')
   const [locationId, setLocationId] = useState(locations[0]?.id ?? '')
+  const [photoFile, setPhotoFile] = useState<File | null>(null)
 
   const n = Number(qty)
   const valid = name.trim().length > 0 && Number.isInteger(n) && n >= 1
@@ -232,6 +255,7 @@ export function ItemDialog({
           qty: n,
           unit: unit.trim() || 'Stk',
           location_id: locationId || null,
+          photoFile,
         })
       }}
     >
@@ -296,6 +320,14 @@ export function ItemDialog({
           ))}
         </select>
       </div>
+
+      <ItemPhotoField
+        existingPath={null}
+        file={photoFile}
+        removed={false}
+        onPick={setPhotoFile}
+        onRemove={() => setPhotoFile(null)}
+      />
     </DialogShell>
   )
 }

@@ -404,6 +404,8 @@ export interface Item {
   note: string | null
   /** Soft Delete: null = aktiv, Datum = ausgeschieden (Archiv). */
   retired_at: string | null
+  /** Artikelfoto im privaten Bucket "item-photos" ({tenant}/{item}-<ts>.jpg). */
+  photo_path: string | null
 }
 
 /** Aktive Ausleihe. Teilmengen sind möglich (3 von 8 Biertischgarnituren). */
