@@ -1,4 +1,8 @@
 -- =====================================================================
+-- >>> DATEIVERSION: 2  (RAISE-Platzhalter korrigiert: % statt %%) <<<
+-- Wenn diese Zeile in deinem SQL-Editor NICHT steht, führst du noch die alte
+-- Fassung aus – dann kompletten Editor-Inhalt löschen und diese Datei einfügen.
+-- =====================================================================
 -- INVENTAR: Bearbeiten + Ausscheiden (Soft Delete) + Reaktivieren
 --
 -- Ausscheiden ist ein Soft Delete (retired_at gesetzt), KEIN echtes Löschen –
