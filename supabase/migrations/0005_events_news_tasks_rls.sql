@@ -114,21 +114,34 @@ grant execute on function active_member_count() to authenticated;
 -- =====================================================================
 alter table news enable row level security;
 
+-- Getrennte Policies je Operation, damit die INSERT-Bedingung eindeutig ist:
+-- Beim INSERT wertet Postgres NUR with check aus – die Rechteprüfung muss dort
+-- stehen. author_id = auth_member_id() verhindert das Posten unter fremdem Namen.
 drop policy if exists news_select on news;
+drop policy if exists news_write  on news;
+drop policy if exists news_insert on news;
+drop policy if exists news_update on news;
+drop policy if exists news_delete on news;
+
 create policy news_select on news for select
   using (
     tenant_id = auth_tenant_id()
-    and (
-      expires_at is null
-      or expires_at >= current_date
-      or has_perm('news.post')
-    )
+    and (expires_at is null or expires_at >= current_date or has_perm('news.post'))
   );
 
-drop policy if exists news_write on news;
-create policy news_write on news for all
+create policy news_insert on news for insert
+  with check (
+    tenant_id = auth_tenant_id()
+    and has_perm('news.post')
+    and author_id = auth_member_id()
+  );
+
+create policy news_update on news for update
   using      (tenant_id = auth_tenant_id() and has_perm('news.post'))
   with check (tenant_id = auth_tenant_id() and has_perm('news.post'));
+
+create policy news_delete on news for delete
+  using (tenant_id = auth_tenant_id() and has_perm('news.post'));
 
 
 -- =====================================================================
