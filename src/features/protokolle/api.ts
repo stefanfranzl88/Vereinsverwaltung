@@ -13,7 +13,10 @@ export async function fetchProtocols(tenantId: string): Promise<Protocol[]> {
   const { data, error } = await supabase
     .from('protocols')
     .select(
-      'id, tenant_id, title, proto_date, time_from, time_to, location, proto_type, visibility, author_id, body, members(first_name, last_name)',
+      // Expliziter FK-Name nötig: protocols hat ZWEI Beziehungen zu members
+      // (author_id-FK und die Verknüpfungstabelle protocol_attendance). Ohne
+      // Disambiguierung → PGRST201 "more than one relationship".
+      'id, tenant_id, title, proto_date, time_from, time_to, location, proto_type, visibility, author_id, body, members!protocols_author_id_fkey(first_name, last_name)',
     )
     .eq('tenant_id', tenantId)
     .order('proto_date', { ascending: false })

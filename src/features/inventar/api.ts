@@ -54,7 +54,9 @@ export async function fetchReservations(): Promise<ItemReservation[]> {
   const { data, error } = await supabase
     .from('item_reservations')
     .select(
-      'id, item_id, member_id, date_from, date_to, purpose, status, members(first_name, last_name)',
+      // Expliziter FK-Name nötig: item_reservations hat zwei FKs zu members
+      // (member_id = Anfrager, decided_by = Freigeber) → sonst PGRST201.
+      'id, item_id, member_id, date_from, date_to, purpose, status, members!item_reservations_member_id_fkey(first_name, last_name)',
     )
     .order('date_from')
     .returns<ItemReservation[]>()
