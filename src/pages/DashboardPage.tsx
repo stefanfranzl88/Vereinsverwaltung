@@ -10,6 +10,7 @@ import { fetchMyTasks, myTasksKey } from '@/features/tasks/api'
 import { MyTasksCard } from '@/features/tasks/MyTasksCard'
 import { NewsCard } from '@/features/news/NewsCard'
 import { MyAssignmentsCard } from '@/features/bigevents/MyAssignmentsCard'
+import { OpenSurveysNotice } from '@/features/umfragen/OpenSurveysNotice'
 
 export function DashboardPage() {
   const { tenant, member: me, roleLabel } = useAuth()
@@ -105,6 +106,8 @@ export function DashboardPage() {
           <div className="v">{openTasks}</div>
         </div>
       </div>
+
+      <OpenSurveysNotice />
 
       <div className="grid2">
         <div>

@@ -267,6 +267,35 @@ export interface DeptAssignment {
 }
 
 // ---------------------------------------------------------------
+// Umfragen (Modul 'umfragen')
+// ---------------------------------------------------------------
+
+export interface Survey {
+  id: string
+  tenant_id: string
+  question: string
+  is_open: boolean
+  created_at: string
+}
+
+export interface SurveyOption {
+  id: string
+  survey_id: string
+  label: string
+  sort_order: number
+}
+
+/**
+ * Ergebnis einer Option – reine Zahl, ohne Personenbezug.
+ * Wer wie gestimmt hat, gibt die Datenbank niemandem preis (siehe 0012).
+ */
+export interface SurveyResult {
+  survey_id: string
+  option_id: string
+  votes: number
+}
+
+// ---------------------------------------------------------------
 // Protokolle (Modul 'core')
 // ---------------------------------------------------------------
 

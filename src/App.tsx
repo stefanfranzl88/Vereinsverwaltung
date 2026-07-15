@@ -13,6 +13,7 @@ import { BigEventsPage } from '@/features/bigevents/BigEventsPage'
 import { InventarPage } from '@/features/inventar/InventarPage'
 import { ProtokollePage } from '@/features/protokolle/ProtokollePage'
 import { MitarbeitPage } from '@/features/mitarbeit/MitarbeitPage'
+import { UmfragenPage } from '@/features/umfragen/UmfragenPage'
 
 /**
  * Noch nicht gebaute Module. Der Nav-Eintrag ist bereits modul-gegated,
@@ -113,7 +114,7 @@ export function App() {
           path="umfragen"
           element={
             <RequireAccess module="umfragen">
-              <Soon title="Umfragen" />
+              <UmfragenPage />
             </RequireAccess>
           }
         />
