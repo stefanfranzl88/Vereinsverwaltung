@@ -1,6 +1,14 @@
 import { useState, type FormEvent } from 'react'
 import { fullName } from '@/lib/format'
-import type { AssignmentRole, BigEventInput, BigEventKind, Member } from '@/types'
+import type {
+  AssignmentRole,
+  BigEvent,
+  BigEventInput,
+  BigEventKind,
+  BigEventSub,
+  CostCenter,
+  Member,
+} from '@/types'
 import type { AssignmentInput } from './api'
 
 interface Shell {
@@ -50,22 +58,34 @@ function DialogShell({
 }
 
 // ---------------------------------------------------------------
-// Event / Projekt anlegen
+// Event / Projekt anlegen ODER bearbeiten
+//
+// Mit `event` wird der Dialog zum Bearbeiten-Dialog (Felder vorbefüllt).
+// Die Kostenstellen-Auswahl erscheint nur, wenn `costCenters` übergeben wird
+// (der Aufrufer hat 'kassa.view'). Fehlt sie, bleibt die bestehende
+// Verknüpfung dennoch erhalten – der Wert wird unverändert mitgeschickt.
 // ---------------------------------------------------------------
 export function BigEventDialog({
+  event,
+  costCenters,
   saving,
   onSave,
   onClose,
 }: {
+  event?: BigEvent | null
+  costCenters?: CostCenter[]
   saving: boolean
   onSave: (input: BigEventInput) => void
   onClose: () => void
 }) {
-  const [kind, setKind] = useState<BigEventKind>('Event')
-  const [name, setName] = useState('')
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
-  const [description, setDescription] = useState('')
+  const isEdit = Boolean(event)
+  const [kind, setKind] = useState<BigEventKind>(event?.kind ?? 'Event')
+  const [name, setName] = useState(event?.name ?? '')
+  const [from, setFrom] = useState(event?.date_from ?? '')
+  const [to, setTo] = useState(event?.date_to ?? '')
+  const [description, setDescription] = useState(event?.description ?? '')
+  // Bleibt auch dann erhalten, wenn das Kostenstellen-Feld nicht angezeigt wird.
+  const [costCenterId, setCostCenterId] = useState(event?.cost_center_id ?? '')
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
@@ -76,17 +96,18 @@ export function BigEventDialog({
       // Kein Enddatum angegeben: einteiliges Event → Ende = Beginn.
       date_to: to || from || null,
       description: description.trim() || null,
+      cost_center_id: costCenterId || null,
     })
   }
 
   return (
     <DialogShell
-      title="🎪 Event / Projekt anlegen"
+      title={isEdit ? `✎ ${kind} bearbeiten` : '🎪 Event / Projekt anlegen'}
       saving={saving}
       onClose={onClose}
       onSubmit={submit}
       disabled={!name.trim()}
-      submitLabel="Anlegen"
+      submitLabel={isEdit ? 'Speichern' : 'Anlegen'}
     >
       <div>
         <label htmlFor="be-kind">Art</label>
@@ -136,6 +157,27 @@ export function BigEventDialog({
           onChange={(e) => setDescription(e.target.value)}
         />
       </div>
+
+      {costCenters && (
+        <div>
+          <label htmlFor="be-cc">Kostenstelle (Nachkalkulation)</label>
+          <select
+            id="be-cc"
+            value={costCenterId}
+            onChange={(e) => setCostCenterId(e.target.value)}
+          >
+            <option value="">– keine –</option>
+            {costCenters.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <p className="hint">
+            Verknüpft Einnahmen und Ausgaben für die Nachkalkulation in der Kassa.
+          </p>
+        </div>
+      )}
     </DialogShell>
   )
 }
@@ -144,19 +186,23 @@ export function BigEventDialog({
 // Subtermin
 // ---------------------------------------------------------------
 export function SubDialog({
+  sub,
   defaultDate,
   saving,
   onSave,
   onClose,
 }: {
+  sub?: BigEventSub
   defaultDate: string
   saving: boolean
   onSave: (sub: { title: string; sub_date: string; sub_time: string | null }) => void
   onClose: () => void
 }) {
-  const [title, setTitle] = useState('')
-  const [date, setDate] = useState(defaultDate)
-  const [time, setTime] = useState('16:00')
+  const isEdit = Boolean(sub)
+  const [title, setTitle] = useState(sub?.title ?? '')
+  const [date, setDate] = useState(sub?.sub_date ?? defaultDate)
+  // Beim Bearbeiten die tatsächliche Zeit (auch „keine"), beim Anlegen ein Default.
+  const [time, setTime] = useState(sub ? (sub.sub_time ?? '') : '16:00')
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
@@ -165,12 +211,12 @@ export function SubDialog({
 
   return (
     <DialogShell
-      title="📅 Subtermin anlegen"
+      title={isEdit ? '📅 Subtermin bearbeiten' : '📅 Subtermin anlegen'}
       saving={saving}
       onClose={onClose}
       onSubmit={submit}
       disabled={!title.trim() || !date}
-      submitLabel="Anlegen"
+      submitLabel={isEdit ? 'Speichern' : 'Anlegen'}
     >
       <div>
         <label htmlFor="sub-title">Titel</label>
@@ -212,19 +258,23 @@ export function SubDialog({
 // Abteilung
 // ---------------------------------------------------------------
 export function DepartmentDialog({
+  current,
   saving,
   onSave,
   onClose,
 }: {
+  /** Gesetzt (auch leer) → Umbenennen-Dialog; undefined → Anlegen. */
+  current?: string
   saving: boolean
   onSave: (name: string) => void
   onClose: () => void
 }) {
-  const [name, setName] = useState('')
+  const isEdit = current !== undefined
+  const [name, setName] = useState(current ?? '')
 
   return (
     <DialogShell
-      title="👷 Abteilung anlegen"
+      title={isEdit ? '👷 Abteilung umbenennen' : '👷 Abteilung anlegen'}
       saving={saving}
       onClose={onClose}
       onSubmit={(e) => {
@@ -232,7 +282,7 @@ export function DepartmentDialog({
         onSave(name.trim())
       }}
       disabled={!name.trim()}
-      submitLabel="Anlegen"
+      submitLabel={isEdit ? 'Speichern' : 'Anlegen'}
     >
       <div>
         <label htmlFor="dept-name">Name</label>
@@ -244,7 +294,9 @@ export function DepartmentDialog({
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <p className="hint">Leitung und Team teilst du danach in der Abteilung ein.</p>
+        {!isEdit && (
+          <p className="hint">Leitung und Team teilst du danach in der Abteilung ein.</p>
+        )}
       </div>
     </DialogShell>
   )
@@ -469,6 +521,50 @@ export function CloseDialog({
           onChange={(e) => setReport(e.target.value)}
           style={{ minHeight: 130 }}
         />
+      </div>
+    </DialogShell>
+  )
+}
+
+// ---------------------------------------------------------------
+// Nachbericht bearbeiten (archiviertes Event – nur das bleibt editierbar)
+// ---------------------------------------------------------------
+export function ReportDialog({
+  kind,
+  current,
+  saving,
+  onSave,
+  onClose,
+}: {
+  kind: string
+  current: string
+  saving: boolean
+  onSave: (report: string) => void
+  onClose: () => void
+}) {
+  const [report, setReport] = useState(current)
+
+  return (
+    <DialogShell
+      title="📝 Nachbericht bearbeiten"
+      saving={saving}
+      onClose={onClose}
+      onSubmit={(e) => {
+        e.preventDefault()
+        onSave(report.trim())
+      }}
+    >
+      <div>
+        <label htmlFor="report-text">Nachbericht zum abgeschlossenen {kind}</label>
+        <textarea
+          id="report-text"
+          autoFocus
+          placeholder="Besucherzahlen, was gut lief, Lernpunkte fürs nächste Mal …"
+          value={report}
+          onChange={(e) => setReport(e.target.value)}
+          style={{ minHeight: 130 }}
+        />
+        <p className="hint">Leer lassen entfernt den Nachbericht.</p>
       </div>
     </DialogShell>
   )

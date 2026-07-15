@@ -232,7 +232,7 @@ export interface BigEvent {
 
 export type BigEventInput = Pick<
   BigEvent,
-  'kind' | 'name' | 'date_from' | 'date_to' | 'description'
+  'kind' | 'name' | 'date_from' | 'date_to' | 'description' | 'cost_center_id'
 >
 
 /** Subtermin (Aufbau Tag 1, Festbetrieb, …). */

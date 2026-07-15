@@ -120,6 +120,25 @@ export async function createBigEvent(tenantId: string, input: BigEventInput): Pr
   if (error) throw error
 }
 
+/**
+ * Stammdaten eines Events ändern (Name, Zeitraum, Beschreibung, Kostenstelle).
+ * Status/Nachbericht/closed_at bleiben unberührt – die laufen über
+ * closeBigEvent/reopenBigEvent/updateReport.
+ */
+export async function updateBigEvent(id: string, input: BigEventInput): Promise<void> {
+  const { data, error } = await supabase
+    .from('big_events')
+    .update(input)
+    .eq('id', id)
+    .select('id')
+
+  if (error) throw error
+  // Ein per RLS blockiertes UPDATE wirft keinen Fehler – es trifft keine Zeile.
+  if (!data || data.length === 0) {
+    throw new Error('Nicht gespeichert – fehlende Berechtigung (event.create).')
+  }
+}
+
 /** Abschließen: Nachbericht speichern und archivieren. */
 export async function closeBigEvent(eventId: string, report: string): Promise<void> {
   const { data, error } = await supabase
@@ -176,6 +195,14 @@ export async function createSub(
   if (error) throw error
 }
 
+export async function updateSub(
+  subId: string,
+  sub: { title: string; sub_date: string; sub_time: string | null },
+): Promise<void> {
+  const { error } = await supabase.from('big_event_subs').update(sub).eq('id', subId)
+  if (error) throw error
+}
+
 export async function deleteSub(subId: string): Promise<void> {
   const { error } = await supabase.from('big_event_subs').delete().eq('id', subId)
   if (error) throw error
@@ -185,6 +212,11 @@ export async function createDepartment(eventId: string, name: string): Promise<v
   const { error } = await supabase
     .from('departments')
     .insert({ big_event_id: eventId, name })
+  if (error) throw error
+}
+
+export async function updateDepartment(deptId: string, name: string): Promise<void> {
+  const { error } = await supabase.from('departments').update({ name }).eq('id', deptId)
   if (error) throw error
 }
 

@@ -8,7 +8,7 @@ import { fdate, ftime, fullName, monthShort, today } from '@/lib/format'
 import { fetchMembers, membersKey } from '@/features/members/api'
 import { eventTasksKey, fetchEventTasks } from '@/features/tasks/api'
 import { costCentersKey, fetchCostCenters } from '@/features/kassa/api'
-import type { BigEvent, BigEventInput, DeptAssignment, Task } from '@/types'
+import type { BigEvent, BigEventInput, BigEventSub, Department, DeptAssignment, Task } from '@/types'
 import {
   assignmentsKey,
   bigEventsFullKey,
@@ -28,6 +28,10 @@ import {
   reopenBigEvent,
   subsKey,
   updateAssignmentNote,
+  updateBigEvent,
+  updateDepartment,
+  updateReport,
+  updateSub,
   type AssignmentInput,
 } from './api'
 import {
@@ -36,6 +40,7 @@ import {
   DepartmentDialog,
   NoteDialog,
   PersonDialog,
+  ReportDialog,
   SubDialog,
 } from './dialogs'
 
@@ -107,11 +112,15 @@ export function BigEventsPage() {
 
   const [dialog, setDialog] = useState<
     | { kind: 'event' }
+    | { kind: 'event-edit' }
     | { kind: 'sub' }
+    | { kind: 'sub-edit'; sub: BigEventSub }
     | { kind: 'dept' }
+    | { kind: 'dept-edit'; dept: Department }
     | { kind: 'person'; deptId: string; deptName: string }
     | { kind: 'note'; id: string; current: string; name: string }
     | { kind: 'close' }
+    | { kind: 'report' }
     | null
   >(null)
 
@@ -187,6 +196,16 @@ export function BigEventsPage() {
     onError: fail,
   })
 
+  const updateEventM = useMutation({
+    mutationFn: (input: BigEventInput) => updateBigEvent(openId!, input),
+    onSuccess: async () => {
+      await invalidateEvent()
+      setDialog(null)
+      toast('Gespeichert')
+    },
+    onError: fail,
+  })
+
   const subM = useMutation({
     mutationFn: (sub: { title: string; sub_date: string; sub_time: string | null }) =>
       createSub(openId!, sub),
@@ -194,6 +213,22 @@ export function BigEventsPage() {
       await invalidateEvent()
       setDialog(null)
       toast('Subtermin angelegt')
+    },
+    onError: fail,
+  })
+
+  const updateSubM = useMutation({
+    mutationFn: ({
+      id,
+      sub,
+    }: {
+      id: string
+      sub: { title: string; sub_date: string; sub_time: string | null }
+    }) => updateSub(id, sub),
+    onSuccess: async () => {
+      await invalidateEvent()
+      setDialog(null)
+      toast('Subtermin gespeichert')
     },
     onError: fail,
   })
@@ -213,6 +248,16 @@ export function BigEventsPage() {
       await invalidateEvent()
       setDialog(null)
       toast('Abteilung angelegt')
+    },
+    onError: fail,
+  })
+
+  const updateDeptM = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) => updateDepartment(id, name),
+    onSuccess: async () => {
+      await invalidateEvent()
+      setDialog(null)
+      toast('Abteilung gespeichert')
     },
     onError: fail,
   })
@@ -277,6 +322,17 @@ export function BigEventsPage() {
       await invalidateEvent()
       setTab('aktiv')
       toast('Wieder aktiviert')
+    },
+    onError: fail,
+  })
+
+  // Nachbericht eines archivierten Events – das Einzige, was dort editierbar bleibt.
+  const reportM = useMutation({
+    mutationFn: (report: string) => updateReport(openId!, report),
+    onSuccess: async () => {
+      await invalidateEvent()
+      setDialog(null)
+      toast('Nachbericht gespeichert')
     },
     onError: fail,
   })
@@ -369,9 +425,14 @@ export function BigEventsPage() {
                 ↩ Wieder aktivieren
               </button>
             ) : (
-              <button className="btn small amber" onClick={() => setDialog({ kind: 'close' })}>
-                ✔ Abschließen / Nachbericht
-              </button>
+              <>
+                <button className="btn ghost small" onClick={() => setDialog({ kind: 'event-edit' })}>
+                  ✎ Bearbeiten
+                </button>
+                <button className="btn small amber" onClick={() => setDialog({ kind: 'close' })}>
+                  ✔ Abschließen / Nachbericht
+                </button>
+              </>
             ))}
         </div>
 
@@ -393,7 +454,15 @@ export function BigEventsPage() {
               background: 'linear-gradient(180deg,#FFFDF6,#fff)',
             }}
           >
-            <h3>📝 Nachbericht</h3>
+            <div className="row" style={{ marginBottom: 8 }}>
+              <h3 style={{ margin: 0 }}>📝 Nachbericht</h3>
+              <div className="spacer" />
+              {mayEdit && (
+                <button className="btn ghost small" onClick={() => setDialog({ kind: 'report' })}>
+                  ✎ Bearbeiten
+                </button>
+              )}
+            </div>
             <p style={{ fontSize: 14.5, whiteSpace: 'pre-line' }}>
               {ev.report || 'Kein Nachbericht hinterlegt.'}
             </p>
@@ -445,13 +514,22 @@ export function BigEventsPage() {
                     </div>
                   </div>
                   {editable && (
-                    <button
-                      className="btn ghost small"
-                      title="Subtermin entfernen"
-                      onClick={() => delSubM.mutate(s.id)}
-                    >
-                      ✕
-                    </button>
+                    <>
+                      <button
+                        className="btn ghost small"
+                        title="Subtermin bearbeiten"
+                        onClick={() => setDialog({ kind: 'sub-edit', sub: s })}
+                      >
+                        ✎
+                      </button>
+                      <button
+                        className="btn ghost small"
+                        title="Subtermin entfernen"
+                        onClick={() => delSubM.mutate(s.id)}
+                      >
+                        ✕
+                      </button>
+                    </>
                   )}
                 </div>
               ))
@@ -495,6 +573,13 @@ export function BigEventsPage() {
                             }
                           >
                             + Person
+                          </button>
+                          <button
+                            className="btn ghost small"
+                            title="Abteilung umbenennen"
+                            onClick={() => setDialog({ kind: 'dept-edit', dept: d })}
+                          >
+                            ✎
                           </button>
                           <button
                             className="btn ghost small"
@@ -587,6 +672,15 @@ export function BigEventsPage() {
           </p>
         </div>
 
+        {dialog?.kind === 'event-edit' && (
+          <BigEventDialog
+            event={ev}
+            costCenters={mayViewKassa ? costCenters : undefined}
+            saving={updateEventM.isPending}
+            onSave={(input) => updateEventM.mutate(input)}
+            onClose={() => setDialog(null)}
+          />
+        )}
         {dialog?.kind === 'sub' && (
           <SubDialog
             defaultDate={ev.date_from ?? today()}
@@ -595,10 +689,36 @@ export function BigEventsPage() {
             onClose={() => setDialog(null)}
           />
         )}
+        {dialog?.kind === 'sub-edit' && (
+          <SubDialog
+            sub={dialog.sub}
+            defaultDate={ev.date_from ?? today()}
+            saving={updateSubM.isPending}
+            onSave={(sub) => updateSubM.mutate({ id: dialog.sub.id, sub })}
+            onClose={() => setDialog(null)}
+          />
+        )}
         {dialog?.kind === 'dept' && (
           <DepartmentDialog
             saving={deptM.isPending}
             onSave={(name) => deptM.mutate(name)}
+            onClose={() => setDialog(null)}
+          />
+        )}
+        {dialog?.kind === 'dept-edit' && (
+          <DepartmentDialog
+            current={dialog.dept.name}
+            saving={updateDeptM.isPending}
+            onSave={(name) => updateDeptM.mutate({ id: dialog.dept.id, name })}
+            onClose={() => setDialog(null)}
+          />
+        )}
+        {dialog?.kind === 'report' && (
+          <ReportDialog
+            kind={ev.kind}
+            current={ev.report ?? ''}
+            saving={reportM.isPending}
+            onSave={(report) => reportM.mutate(report)}
             onClose={() => setDialog(null)}
           />
         )}
@@ -711,6 +831,7 @@ export function BigEventsPage() {
 
       {dialog?.kind === 'event' && (
         <BigEventDialog
+          costCenters={mayViewKassa ? costCenters : undefined}
           saving={createEventM.isPending}
           onSave={(input) => createEventM.mutate(input)}
           onClose={() => setDialog(null)}
