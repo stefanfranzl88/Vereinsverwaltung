@@ -42,6 +42,12 @@ npm run dev
 | 20 | `supabase/seed_demo_schluessel.sql` | *optional*: Zutrittsprotokoll und Auslese-Erinnerung |
 | 21 | `supabase/seed_demo_chat.sql` | *optional*: ein paar Chat-Nachrichten |
 
+Zum Nachprüfen: `supabase/activate_realtime_and_storage.sql` stellt die Buckets
+und die Realtime-Publication idempotent sicher und meldet am Ende, welche
+Buckets, Storage-Policies, Realtime- und RLS-Einstellungen tatsächlich aktiv
+sind. Buckets und Realtime brauchen **keinen** separaten Schalter im Dashboard –
+sie entstehen per SQL (in den Migrationen bzw. diesem Skript).
+
 `setup_complete.sql` ist das einzige Skript, das du brauchst. Es ist durchgängig
 idempotent und darf beliebig oft laufen. Die E-Mail des Auth-Benutzers steht in
 Abschnitt 3 und 4 – bei abweichender Adresse dort ersetzen.
