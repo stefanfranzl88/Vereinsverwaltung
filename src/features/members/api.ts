@@ -61,30 +61,49 @@ export const memberGdprDelete = (memberId: string) => invokeOffboard('gdpr', mem
 /** Zugangsstatus eines Mitglieds. Fehlt der Eintrag → kein Zugang (einladbar). */
 export type MemberAccountStatus = 'aktiv' | 'eingeladen'
 
+export interface MemberAccountState {
+  status: MemberAccountStatus
+  /** Wann zuletzt eingeladen (auth.users.invited_at) – für „Erneut einladen". */
+  invitedAt: string | null
+}
+
 /**
  * Account-Status je Mitglied (aus member_account_states()). Nur Mitglieder MIT
  * Zugang stehen in der Map; wer fehlt, hat noch keinen Login. Die Funktion ist
  * über auth_tenant_id() auf den eigenen Verein beschränkt.
  */
-export async function fetchMemberAccountStates(): Promise<Map<string, MemberAccountStatus>> {
+export async function fetchMemberAccountStates(): Promise<Map<string, MemberAccountState>> {
   const { data, error } = await supabase.rpc('member_account_states')
   if (error) throw error
 
-  const map = new Map<string, MemberAccountStatus>()
-  for (const r of (data ?? []) as { member_id: string; status: MemberAccountStatus }[]) {
-    map.set(r.member_id, r.status)
+  const map = new Map<string, MemberAccountState>()
+  for (const r of (data ?? []) as {
+    member_id: string
+    status: MemberAccountStatus
+    invited_at: string | null
+  }[]) {
+    map.set(r.member_id, { status: r.status, invitedAt: r.invited_at })
   }
   return map
 }
 
+export interface InviteResult {
+  email: string
+  /** true, wenn es eine erneute Einladung war (Zugang existierte bereits). */
+  reinvited: boolean
+}
+
 /**
- * Lädt ein Mitglied per E-Mail ein. Ruft die Edge Function 'invite-member' auf –
- * der service_role-Key bleibt dort im Backend. Gibt die Ziel-E-Mail zurück.
+ * Lädt ein Mitglied per E-Mail ein bzw. lädt es erneut ein. Ruft die Edge
+ * Function 'invite-member' auf – der service_role-Key bleibt im Backend. Wirft,
+ * wenn die Function einen Fehler meldet (z. B. Mail-Rate-Limit) – dann gilt das
+ * Mitglied bewusst NICHT als eingeladen.
  */
-export async function inviteMember(memberId: string): Promise<string> {
+export async function inviteMember(memberId: string): Promise<InviteResult> {
   const { data, error } = await supabase.functions.invoke<{
     ok?: boolean
     email?: string
+    reinvited?: boolean
     error?: string
   }>('invite-member', { body: { member_id: memberId } })
 
@@ -105,7 +124,7 @@ export async function inviteMember(memberId: string): Promise<string> {
   }
 
   if (!data?.ok) throw new Error(data?.error ?? 'Einladung fehlgeschlagen')
-  return data.email ?? ''
+  return { email: data.email ?? '', reinvited: Boolean(data.reinvited) }
 }
 
 /**

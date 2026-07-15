@@ -46,6 +46,7 @@ Evidenz, nicht einzeln bestätigt) · `[ ]` offen / unbestätigt
 | 0019 | `0019_tenant_settings.sql` | logos-Bucket + login_branding() + tenants_update | [ ] |
 | 0020 | `0020_member_roles_offboarding.sql` | set_member_role() + member_roles-RLS | [ ] |
 | 0021 | `0021_mitarbeit_config.sql` | konfigurierbare Mitarbeitspunkte (member_points neu, create_protocol lockert Arten) | [ ] |
+| 0022 | `0022_member_invited_at.sql` | member_account_states() um invited_at erweitert (Erneut-einladen-Button) | [ ] |
 
 `[~]` beruht auf deinem activate-Report („RLS überall an") – das belegt, dass die
 RLS-aktivierenden Migrationen liefen, aber nicht jede einzeln. Sag Bescheid,
@@ -63,6 +64,7 @@ welche du sicher eingespielt hast, dann setze ich sie auf `[x]`.
 ## Edge Functions (per CLI deployen, siehe jeweiliges README)
 
 - [ ] **`invite-member`** – Mitglieder einladen (braucht `APP_URL`-Secret + Redirect-URL).
+  **Nach Änderung neu deployen** (Erneut-einladen / Behandlung bestehender Auth-Benutzer).
 - [ ] **`member-offboard`** – Austritt & DSGVO-Löschung (service_role wird
   automatisch injiziert; kein Extra-Secret nötig).
 

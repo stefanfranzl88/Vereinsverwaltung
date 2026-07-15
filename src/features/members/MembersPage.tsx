@@ -93,10 +93,15 @@ export function MembersPage() {
 
   const inviteMutation = useMutation({
     mutationFn: (memberId: string) => inviteMember(memberId),
-    onSuccess: async (email) => {
+    onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: accountStatesKey(tenantId) })
-      toast(`Einladung an ${email} gesendet`)
+      toast(
+        result.reinvited
+          ? `Erneute Einladung an ${result.email} gesendet`
+          : `Einladung an ${result.email} gesendet`,
+      )
     },
+    // Fehler (z. B. Rate-Limit): KEINE Status-Änderung – der Button bleibt.
     onError: (e: Error) => toastError(`Einladung fehlgeschlagen: ${e.message}`),
   })
 
@@ -202,9 +207,12 @@ export function MembersPage() {
   const renderRow = (m: Member) => {
     const isMe = me?.id === m.id
     const chip = chipByMember.get(m.id)
-    // Zugangsstatus: undefined = noch kein Login. Nur für Verwalter geladen.
-    const account = mayEdit ? accountStates.get(m.id) : undefined
+    // Zugangsstatus: kein Eintrag = noch kein Login. Nur für Verwalter geladen.
+    const state = mayEdit ? accountStates.get(m.id) : undefined
+    const account = state?.status
     const canInvite = mayEdit && account === undefined && Boolean(m.email)
+    // "eingeladen" = Zugang existiert, aber E-Mail nie bestätigt → erneut möglich.
+    const canReinvite = mayEdit && account === 'eingeladen' && Boolean(m.email)
 
     return (
       <tr key={m.id}>
@@ -244,9 +252,19 @@ export function MembersPage() {
             <span
               className="pill amber"
               style={{ marginLeft: 6 }}
-              title="Einladung gesendet, noch nicht angenommen"
+              title={
+                state?.invitedAt
+                  ? `Zuletzt eingeladen am ${fdate(state.invitedAt.slice(0, 10))} – noch nicht angenommen`
+                  : 'Einladung gesendet, noch nicht angenommen'
+              }
             >
               eingeladen
+              {state?.invitedAt && (
+                <span style={{ fontWeight: 400, opacity: 0.8 }}>
+                  {' '}
+                  · {fdate(state.invitedAt.slice(0, 10))}
+                </span>
+              )}
             </span>
           )}
 
@@ -287,6 +305,20 @@ export function MembersPage() {
                   onClick={() => inviteMutation.mutate(m.id)}
                 >
                   ✉ Einladen
+                </button>
+              )}
+              {canReinvite && (
+                <button
+                  className="btn ghost small"
+                  disabled={inviteMutation.isPending}
+                  title={
+                    state?.invitedAt
+                      ? `Zuletzt eingeladen am ${fdate(state.invitedAt.slice(0, 10))} – erneut senden`
+                      : `Erneut an ${m.email} senden`
+                  }
+                  onClick={() => inviteMutation.mutate(m.id)}
+                >
+                  ↻ Erneut einladen
                 </button>
               )}
               <button className="btn ghost small" onClick={() => openEdit(m)}>

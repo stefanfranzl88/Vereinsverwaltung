@@ -97,23 +97,57 @@ Deno.serve(async (req: Request) => {
     return json({ error: 'Dieses Mitglied hat keine E-Mail-Adresse' }, 400)
   }
 
-  // --- 6. Schon verknüpft?
-  const { data: existing } = await admin
+  // --- 6. Gibt es schon einen Auth-Benutzer für dieses Mitglied?
+  //     Primär über das verknüpfte Profil (profile.id = auth.users.id). Zusätzlich
+  //     über die E-Mail, um einen "Waisen"-Benutzer zu finden, der bei einem
+  //     früheren, am Mailversand gescheiterten Versuch entstanden sein kann
+  //     (angelegt, aber ohne Profil).
+  const { data: profile } = await admin
     .from('profiles')
     .select('id')
     .eq('member_id', memberId)
     .maybeSingle()
-  if (existing) return json({ error: 'Dieses Mitglied hat bereits einen Zugang' }, 409)
 
-  // --- 7. Einladung senden. redirectTo muss in der Redirect-URL-Allowlist stehen.
+  let existingUserId: string | null = profile?.id ?? null
+  if (!existingUserId) {
+    const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
+    const match = list?.users.find(
+      (u) => u.email?.toLowerCase() === member.email!.toLowerCase(),
+    )
+    existingUserId = match?.id ?? null
+  }
+
+  const reinvite = existingUserId !== null
+
+  if (existingUserId) {
+    // Ist der Zugang schon in Benutzung? Dann NICHT löschen/neu einladen.
+    const { data: got } = await admin.auth.admin.getUserById(existingUserId)
+    if (got?.user?.email_confirmed_at) {
+      return json({ error: 'Dieses Mitglied hat bereits einen aktiven Zugang' }, 409)
+    }
+    // Unbestätigt (nie angemeldet): sauberer Neustart. Das Löschen cascadet das
+    // Profil (profiles.id references auth.users on delete cascade).
+    const { error: delErr } = await admin.auth.admin.deleteUser(existingUserId)
+    if (delErr) {
+      return json({ error: `Alte Einladung konnte nicht ersetzt werden: ${delErr.message}` }, 500)
+    }
+  }
+
+  // --- 7. Einladung senden (verschickt die Mail über Supabase).
+  //     redirectTo muss in der Redirect-URL-Allowlist stehen.
   const { data: invite, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(member.email, {
     redirectTo: `${appUrl}/set-password`,
   })
+  // WICHTIG: Schlägt der Versand fehl (z. B. Rate-Limit), MELDEN wir das und
+  // legen KEIN Profil an – das Mitglied gilt dann nicht als eingeladen.
   if (inviteErr || !invite?.user) {
-    return json({ error: `Einladung fehlgeschlagen: ${inviteErr?.message ?? 'unbekannt'}` }, 400)
+    return json(
+      { error: `Einladung/Versand fehlgeschlagen: ${inviteErr?.message ?? 'unbekannt'}` },
+      400,
+    )
   }
 
-  // --- 8. Profil serverseitig anlegen (Verknüpfung, nicht aus Metadaten)
+  // --- 8. Profil serverseitig anlegen (Verknüpfung, nicht aus Metadaten).
   const { error: profErr } = await admin.from('profiles').insert({
     id: invite.user.id,
     tenant_id: caller.tenant_id,
@@ -121,11 +155,10 @@ Deno.serve(async (req: Request) => {
     is_sysadmin: false,
   })
   if (profErr) {
-    // Aufräumen: den eben erstellten Auth-Benutzer wieder entfernen, sonst
-    // hinge eine Einladung ohne Profil in der Luft.
+    // Aufräumen: den eben erstellten Auth-Benutzer wieder entfernen.
     await admin.auth.admin.deleteUser(invite.user.id)
     return json({ error: `Profil konnte nicht angelegt werden: ${profErr.message}` }, 500)
   }
 
-  return json({ ok: true, email: member.email }, 200)
+  return json({ ok: true, email: member.email, reinvited: reinvite }, 200)
 })
