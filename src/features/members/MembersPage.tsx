@@ -6,9 +6,12 @@ import { Avatar } from '@/components/Avatar'
 import { fdate, fullName } from '@/lib/format'
 import type { Member, MemberInput } from '@/types'
 import {
+  accountStatesKey,
   createMember,
   fetchKeyChips,
+  fetchMemberAccountStates,
   fetchMembers,
+  inviteMember,
   keyChipsKey,
   membersKey,
   updateDekade,
@@ -57,7 +60,24 @@ export function MembersPage() {
     return map
   }, [chips])
 
+  // Account-Status (aktiv / eingeladen / kein Zugang) – nur relevant für
+  // Verwalter, deshalb nur mit members.edit laden.
+  const { data: accountStates = new Map() } = useQuery({
+    queryKey: accountStatesKey(tenantId),
+    queryFn: fetchMemberAccountStates,
+    enabled: Boolean(tenantId) && mayEdit,
+  })
+
   const invalidate = () => queryClient.invalidateQueries({ queryKey: membersKey(tenantId) })
+
+  const inviteMutation = useMutation({
+    mutationFn: (memberId: string) => inviteMember(memberId),
+    onSuccess: async (email) => {
+      await queryClient.invalidateQueries({ queryKey: accountStatesKey(tenantId) })
+      toast(`Einladung an ${email} gesendet`)
+    },
+    onError: (e: Error) => toastError(`Einladung fehlgeschlagen: ${e.message}`),
+  })
 
   const saveMutation = useMutation({
     mutationFn: (input: MemberInput) =>
@@ -136,6 +156,9 @@ export function MembersPage() {
   const renderRow = (m: Member) => {
     const isMe = me?.id === m.id
     const chip = chipByMember.get(m.id)
+    // Zugangsstatus: undefined = noch kein Login. Nur für Verwalter geladen.
+    const account = mayEdit ? accountStates.get(m.id) : undefined
+    const canInvite = mayEdit && account === undefined && Boolean(m.email)
 
     return (
       <tr key={m.id}>
@@ -162,6 +185,22 @@ export function MembersPage() {
           {m.status !== 'aktiv' && (
             <span className="pill grey" style={{ marginLeft: 6 }}>
               {m.status}
+            </span>
+          )}
+
+          {/* Zugangsstatus (getrennt von der Mitgliedschafts-Status-Pille). */}
+          {account === 'aktiv' && (
+            <span className="pill green" style={{ marginLeft: 6 }} title="Hat einen Login">
+              ✓ Zugang
+            </span>
+          )}
+          {account === 'eingeladen' && (
+            <span
+              className="pill amber"
+              style={{ marginLeft: 6 }}
+              title="Einladung gesendet, noch nicht angenommen"
+            >
+              eingeladen
             </span>
           )}
 
@@ -193,9 +232,21 @@ export function MembersPage() {
         </td>
         {mayEdit && (
           <td>
-            <button className="btn ghost small" onClick={() => openEdit(m)}>
-              Bearbeiten
-            </button>
+            <div className="row" style={{ gap: 6, justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
+              {canInvite && (
+                <button
+                  className="btn ghost small"
+                  disabled={inviteMutation.isPending}
+                  title={`Einladung an ${m.email} senden`}
+                  onClick={() => inviteMutation.mutate(m.id)}
+                >
+                  ✉ Einladen
+                </button>
+              )}
+              <button className="btn ghost small" onClick={() => openEdit(m)}>
+                Bearbeiten
+              </button>
+            </div>
           </td>
         )}
       </tr>

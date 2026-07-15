@@ -3,6 +3,57 @@ import type { KeyChip, Member, MemberInput } from '@/types'
 
 export const membersKey = (tenantId: string) => ['members', tenantId] as const
 export const keyChipsKey = (tenantId: string) => ['key-chips', tenantId] as const
+export const accountStatesKey = (tenantId: string) => ['member-account-states', tenantId] as const
+
+/** Zugangsstatus eines Mitglieds. Fehlt der Eintrag → kein Zugang (einladbar). */
+export type MemberAccountStatus = 'aktiv' | 'eingeladen'
+
+/**
+ * Account-Status je Mitglied (aus member_account_states()). Nur Mitglieder MIT
+ * Zugang stehen in der Map; wer fehlt, hat noch keinen Login. Die Funktion ist
+ * über auth_tenant_id() auf den eigenen Verein beschränkt.
+ */
+export async function fetchMemberAccountStates(): Promise<Map<string, MemberAccountStatus>> {
+  const { data, error } = await supabase.rpc('member_account_states')
+  if (error) throw error
+
+  const map = new Map<string, MemberAccountStatus>()
+  for (const r of (data ?? []) as { member_id: string; status: MemberAccountStatus }[]) {
+    map.set(r.member_id, r.status)
+  }
+  return map
+}
+
+/**
+ * Lädt ein Mitglied per E-Mail ein. Ruft die Edge Function 'invite-member' auf –
+ * der service_role-Key bleibt dort im Backend. Gibt die Ziel-E-Mail zurück.
+ */
+export async function inviteMember(memberId: string): Promise<string> {
+  const { data, error } = await supabase.functions.invoke<{
+    ok?: boolean
+    email?: string
+    error?: string
+  }>('invite-member', { body: { member_id: memberId } })
+
+  if (error) {
+    // Bei non-2xx steckt die eigentliche Meldung im Response-Body, nicht in
+    // error.message ("Edge Function returned a non-2xx status code").
+    let msg = error.message
+    const ctx = (error as { context?: Response }).context
+    if (ctx && typeof ctx.json === 'function') {
+      try {
+        const body = await ctx.json()
+        if (body?.error) msg = body.error
+      } catch {
+        /* Body nicht lesbar – bei der Standardmeldung bleiben. */
+      }
+    }
+    throw new Error(msg)
+  }
+
+  if (!data?.ok) throw new Error(data?.error ?? 'Einladung fehlgeschlagen')
+  return data.email ?? ''
+}
 
 /**
  * Schlüsselchips für das 🔑 in der Mitgliederliste.

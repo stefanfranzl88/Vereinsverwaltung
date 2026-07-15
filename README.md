@@ -48,6 +48,15 @@ Buckets, Storage-Policies, Realtime- und RLS-Einstellungen tatsächlich aktiv
 sind. Buckets und Realtime brauchen **keinen** separaten Schalter im Dashboard –
 sie entstehen per SQL (in den Migrationen bzw. diesem Skript).
 
+### Mitglieder einladen (Edge Function)
+
+`0016_member_invitations.sql` liefert den Account-Status je Mitglied. Die
+Einladung selbst läuft über die Edge Function `invite-member` – Deployment,
+Secrets (`APP_URL`) und die nötige Redirect-URL-Konfiguration im Dashboard sind
+in `supabase/functions/invite-member/README.md` beschrieben. Der
+`service_role`-Key wird von Supabase automatisch in die Function injiziert und
+steht nie im Frontend.
+
 `setup_complete.sql` ist das einzige Skript, das du brauchst. Es ist durchgängig
 idempotent und darf beliebig oft laufen. Die E-Mail des Auth-Benutzers steht in
 Abschnitt 3 und 4 – bei abweichender Adresse dort ersetzen.

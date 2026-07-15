@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from '@/components/AppShell'
 import { RequireAccess, RequireAuth } from '@/auth/RequireAuth'
 import { LoginPage } from '@/pages/LoginPage'
+import { SetPasswordPage } from '@/pages/SetPasswordPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { MembersPage } from '@/features/members/MembersPage'
 import { RolesMatrixPage } from '@/features/roles/RolesMatrixPage'
@@ -21,6 +22,7 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/set-password" element={<SetPasswordPage />} />
 
       <Route
         element={
